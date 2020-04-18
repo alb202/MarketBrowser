@@ -27,4 +27,4 @@ class TimeSeries:
         self.meta_data = result["Meta Data"]
         self.data = pd.DataFrame.from_dict(result[list(filter(lambda x: x != "Meta Data", result.keys()))[0]]).transpose()
 
-        return("Data request successful!")
+        # return(None)
