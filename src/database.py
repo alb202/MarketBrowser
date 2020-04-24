@@ -2,8 +2,12 @@
 
 It contains classes to control the database connection and database reading and writing
 """
-import sqlite3
 import logging
+import sqlite3
+
+import pandas as pd
+import timeseries
+
 
 # Note: to get sqlite3 working, I copied the DLL from
 # https://www.sqlite.org/download.html to the folder {Miniconda folder}\DLLs
@@ -13,6 +17,7 @@ class Database:
     def __init__(self, db_location, db_schema):
         self.__db_connection = sqlite3.connect(db_location)
         self.cur = self.__db_connection.cursor()
+        # self.last_refreshed = None
 
         if len(self.view_tables()) == 0:
             logging.info("Database has no tables, so they need to be created ...")
@@ -24,6 +29,11 @@ class Database:
         self.__db_connection.close()
 
     def view_tables(self):
+        """
+
+        :return:
+        :return:
+        """
         cursor = self.cur
         tables = [i[0] for i in list(
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';"))]
@@ -31,6 +41,11 @@ class Database:
         return tables
 
     def does_table_exist(self, table):
+        """
+
+        :param table:
+        :return:
+        """
         cursor = self.cur
         tables = [i[0] for i in list(
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';"))]
@@ -52,11 +67,15 @@ class Database:
         logging.info("Table %s has columns: %s", table, str(columns))
         return columns
 
+
     def append_to_table(self, dataframe, table):
         logging.info("Adding dataframe to table %s", table)
         cursor = self.cur
-        dataframe.to_sql(name=table, con=cursor.connection,
-                         if_exists='append', index=False, method=None)
+        dataframe.to_sql(name=table,
+                         con=cursor.connection,
+                         if_exists='append',
+                         index=False,
+                         method=None)
 
     def create_tables(self, db_schema):
         logging.info("Creating database tables with SQL schema ...")
@@ -68,3 +87,25 @@ class Database:
             cursor.execute(line)
             line = schema.readline()
         schema.close()
+
+    def load_data_table(self, table, has_dt=False):
+        logging.info("Loading all data from table %s", table)
+        sql = "SELECT * FROM %s" % table
+        return self.table_to_pandas(sql=sql,
+                                    has_dt=has_dt)
+
+    def table_to_pandas(self, sql, has_dt=False):
+        logging.info("Reading from database ...")
+        has_dt = {"datetime": timeseries.DATETIME_FORMAT} if has_dt else None
+        return pd.read_sql_query(con=self.__db_connection,
+                                 sql=sql,
+                                 parse_dates=has_dt)
+
+    def replace_table(self, dataframe, table):
+        logging.info("Replacing database table with dataframe ...")
+        cursor = self.cur
+        dataframe.to_sql(name=table,
+                         con=cursor.connection,
+                         if_exists='replace',
+                         index=False,
+                         method=None)
