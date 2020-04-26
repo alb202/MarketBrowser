@@ -2,11 +2,15 @@
 
 It contains classes for general functionality
 """
-
+import datetime as dt
 import logging
-from datetime import datetime
 
+import market_time
 import numpy as np
+import pytz
+
+MARKET_TZ = pytz.timezone(market_time.MARKET_TZ_CODE)
+UTC_TZ = pytz.timezone(market_time.UTC_TZ_CODE)
 
 DTYPES = {"symbol": str,
           "datetime": 'datetime64',
@@ -33,12 +37,22 @@ def set_column_dtypes(dataframe, dtypes):
     return dataframe
 
 
-def format_datetime(dt, format):
-    return datetime.strptime(dt.strftime(format), format)
+def format_datetime(old_date, date_format):
+    return dt.datetime.strptime(old_date.strftime(date_format), date_format)
 
 
-def get_current_time(format='%Y-%m-%d %H:%M:%S'):
-    return format_datetime(datetime.now(), format)
+def get_current_time(date_format='%Y-%m-%d %H:%M:%S',
+                     set_to_utc=True,
+                     old_timezone=MARKET_TZ,
+                     new_timezone=UTC_TZ):
+    current_time = format_datetime(dt.datetime.now(), date_format)
+    if set_to_utc:
+        current_time = convert_between_timezones(current_time, old_timezone, new_timezone)
+    return current_time
+
+
+def convert_between_timezones(old_datetime, old_timezone, new_timezone):
+    return old_timezone.localize(old_datetime).astimezone(new_timezone)
 
 
 def make_query(symbol, function, interval=None):
@@ -51,11 +65,13 @@ def make_query(symbol, function, interval=None):
 
 
 def validate_args(args):
-    if (('INTRADAY' not in args['function']) and (args['interval'] is not None) and (args['interval'] != '')):
+    if ('INTRADAY' not in args['function']) & \
+            (args['interval'] is not None) & \
+            (args['interval'] != ''):
         logging.info('Only intraday function requires intervals! Exiting ... ')
         exit(2)
-    elif ((args['symbol'] is None) or (args['symbol'] == '')):
+    elif (args['symbol'] is None) | (args['symbol'] == ''):
         logging.info('The symbol must be a string of at least 1 character! Exiting ... ')
         exit(2)
     else:
-        return (args)
+        return args

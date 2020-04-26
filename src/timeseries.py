@@ -2,12 +2,13 @@
 
 This module controls the request of data from the server and formatting of timeseries data
 """
+
+import datetime as dt
 import logging
-from datetime import datetime
 
 import pandas as pd
 import requests
-import utils
+import utilities
 
 API_KEY = "5V11PBP7KPJDDNUP"
 URL = "https://www.alphavantage.co/query?"
@@ -16,24 +17,26 @@ RETURN_FORMAT = "json"
 DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
-
 # TIME_FORMAT = '%H:%M:%S'
 
 
 def convert_string_to_datetime(string, str_format):
-    return datetime.strptime(string, str_format)
+    return dt.datetime.strptime(string, str_format)
 
 
-def convert_datetime_to_string(dt, str_format):
-    return datetime.strftime(dt, str_format)
+def convert_datetime_to_string(old_datetime, str_format):
+    return dt.datetime.strftime(old_datetime, str_format)
 
 
-def check_date_format(dt, convert=True):
-    if len(dt.split(" ")) == 1:
-        dt = str(dt) + " 16:00:00"
+def check_date_format(old_datetime, convert=True):
+    new_datetime = old_datetime.split(" ")
+    if len(new_datetime) == 1:
+        new_datetime = str(old_datetime) + " 16:00:00"
+    else:
+        new_datetime = old_datetime
     if convert:
-        dt = convert_string_to_datetime(dt, DATETIME_FORMAT)
-    return dt
+        new_datetime = convert_string_to_datetime(old_datetime, DATETIME_FORMAT)
+    return new_datetime
 
 
 def format_column_names(names):
@@ -43,7 +46,6 @@ def format_column_names(names):
 
 class TimeSeries:
 
-    # def __init__(self, function=None, symbol=None, interval=None):
     def __init__(self):
         logging.info("Creating TimeSeries object ...")
         self.function = ''
@@ -70,34 +72,41 @@ class TimeSeries:
         logging.info("Getting data with parameters: %s", str(parameters))
         try:
             self.raw_data = requests.get(url=URL, params=parameters).json()
-        except:
+        except requests.RequestException as error:
             logging.debug("Data grab failed!")
-        finally:
-            # print("Finally")
-            if (type(self.raw_data) == dict):
+            logging.info(error)
+            exit(2)
+        else:
+            if isinstance(self.raw_data, dict):
                 # print("setting has_data to TRUE")
                 self.has_data = True
-            logging.info("Object loaded with raw data")
+                logging.info("Object loaded with raw data")
 
     def process_meta_data(self):
-        if self.has_data == False:
+        print("Processing metadata ........")
+        if not self.has_data:
             return
         meta_data = self.raw_data["Meta Data"]
 
         # if (len(meta_data['3. Last Refreshed'].split(" ")) == 2):
         #     # date = convert_string_to_datetime(date, DATE_FORMAT)
-        #     time = convert_string_to_datetime(meta_data['3. Last Refreshed'].split(" ")[1], TIME_FORMAT)
+        #     time = convert_string_to_datetime(
+        #     meta_data['3. Last Refreshed'].split(" ")[1],
+        #     TIME_FORMAT)
         # else:
         #     time = None
         self.meta_data = pd.DataFrame.from_dict(
             {'symbol': [self.symbol],
              'function': [self.function],
              'interval': [self.interval],
-             'datetime': [check_date_format(meta_data['3. Last Refreshed'])]},
+             'datetime': [utilities.convert_between_timezones(
+                 check_date_format(meta_data['3. Last Refreshed']),
+                 utilities.MARKET_TZ,
+                 utilities.UTC_TZ)]},
             orient='columns')
 
     def process_data(self):
-        if self.has_data == False:
+        if not self.has_data:
             return
         # self.meta_data = raw_result["Meta Data"]
         # logging.info("Request meta-data: %s", str(self.meta_data))
@@ -109,15 +118,15 @@ class TimeSeries:
         results_df.reset_index(drop=False, inplace=True)
         results_df.rename(columns={"index": "datetime"}, inplace=True)
         results_df['symbol'] = self.symbol
-        results_df = utils.set_column_dtypes(dataframe=results_df,
-                                             dtypes=utils.DTYPES)
+        results_df = utilities.set_column_dtypes(dataframe=results_df,
+                                                 dtypes=utilities.DTYPES)
 
         if "split_coefficient" in results_df.columns:
-            column_order = utils.DATA_COLUMNS3
+            column_order = utilities.DATA_COLUMNS3
         elif "adjusted_close" in results_df.columns:
-            column_order = utils.DATA_COLUMNS2
+            column_order = utilities.DATA_COLUMNS2
         else:
-            column_order = utils.DATA_COLUMNS1
+            column_order = utilities.DATA_COLUMNS1
 
         results_df = results_df[column_order]
 

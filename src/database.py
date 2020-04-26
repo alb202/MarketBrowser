@@ -2,6 +2,7 @@
 
 It contains classes to control the database connection and database reading and writing
 """
+
 import logging
 import sqlite3
 
@@ -66,7 +67,6 @@ class Database:
         columns = [i[0] for i in cursor.description]
         logging.info("Table %s has columns: %s", table, str(columns))
         return columns
-
 
     def append_to_table(self, dataframe, table):
         logging.info("Adding dataframe to table %s", table)
