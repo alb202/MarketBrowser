@@ -17,7 +17,6 @@ RETURN_FORMAT = "json"
 DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
-# TIME_FORMAT = '%H:%M:%S'
 
 
 def convert_string_to_datetime(string, str_format):
@@ -35,7 +34,7 @@ def check_date_format(old_datetime, convert=True):
     else:
         new_datetime = old_datetime
     if convert:
-        new_datetime = convert_string_to_datetime(old_datetime, DATETIME_FORMAT)
+        new_datetime = convert_string_to_datetime(new_datetime, DATETIME_FORMAT)
     return new_datetime
 
 
@@ -56,7 +55,28 @@ class TimeSeries:
         self.meta_data = None
         self.has_data = False
 
-    def get_data(self, function, symbol, interval=None):
+    def get_data_from_database(self, con, function, symbol, has_dt=False, interval=None):
+        self.function = function
+        self.symbol = symbol
+        self.interval = interval
+        # query = utilities.make_query(symbol, function, interval)
+        logging.info("Getting data from database ...")
+        try:
+            self.data = con.table_to_pandas(
+                sql=utilities.make_sql(symbol=symbol,
+                                       function=function,
+                                       interval=interval),
+                has_dt=has_dt)
+        except requests.ConnectionError as error:
+            logging.debug("Cannot get data from database!")
+            logging.info(error)
+            exit(2)
+        finally:
+            if isinstance(self.data, pd.DataFrame):
+                self.has_data = True
+                logging.info("Object loaded with data from database")
+
+    def get_data_from_server(self, function, symbol, interval=None):
         self.function = function
         self.symbol = symbol
         self.interval = interval

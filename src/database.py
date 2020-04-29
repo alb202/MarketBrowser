@@ -16,9 +16,16 @@ import timeseries
 class Database:
 
     def __init__(self, db_location, db_schema):
+        """
+        Initialize the database connection
+
+        :param db_location:
+        :type db_location:
+        :param db_schema:
+        :type db_schema:
+        """
         self.__db_connection = sqlite3.connect(db_location)
         self.cur = self.__db_connection.cursor()
-        # self.last_refreshed = None
 
         if len(self.view_tables()) == 0:
             logging.info("Database has no tables, so they need to be created ...")
@@ -27,14 +34,14 @@ class Database:
             logging.info("Database has already been initialized ...")
 
     def __del__(self):
+        """
+        :arg
+
+        """
         self.__db_connection.close()
 
     def view_tables(self):
-        """
 
-        :return:
-        :return:
-        """
         cursor = self.cur
         tables = [i[0] for i in list(
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';"))]
@@ -54,6 +61,11 @@ class Database:
         return table in tables
 
     def create_ts_table(self, table):
+        """
+
+        :param table:
+        :type table:
+        """
         logging.info("Creating table %s ...", table)
         cursor = self.cur
         cursor.execute(f"CREATE TABLE IF NOT EXISTS {table}"
@@ -61,7 +73,7 @@ class Database:
                        f"high REAL, low REAL, close REAL, volume INTEGER);")
         logging.info("Created table %s", table)
 
-    def view_table_info(self, table):
+    def view_table_info(self, table: str) -> list:
         cursor = self.cur
         cursor = cursor.execute(f'select * from {table}')
         columns = [i[0] for i in cursor.description]

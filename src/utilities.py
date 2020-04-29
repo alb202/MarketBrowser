@@ -64,6 +64,12 @@ def make_query(symbol, function, interval=None):
     return query
 
 
+def make_sql(symbol, function, interval=None):
+    sql = f"SELECT * FROM {function} WHERE symbol=='{symbol}';"
+    print('Made sql:', sql)
+    return sql
+
+
 def validate_args(args):
     if ('INTRADAY' not in args['function']) & \
             (args['interval'] is not None) & \
