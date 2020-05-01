@@ -63,4 +63,4 @@ class DataStatus:
         return results['datetime'][0] if len(results) > 0 else None
 
     def save_table(self):
-        self.database.replace_table(self.data, "DATA_STATUS")
+        self.database.update_table(self.data, "DATA_STATUS", "replace")

@@ -16,14 +16,6 @@ import timeseries
 class Database:
 
     def __init__(self, db_location, db_schema):
-        """
-        Initialize the database connection
-
-        :param db_location:
-        :type db_location:
-        :param db_schema:
-        :type db_schema:
-        """
         self.__db_connection = sqlite3.connect(db_location)
         self.cur = self.__db_connection.cursor()
 
@@ -34,10 +26,6 @@ class Database:
             logging.info("Database has already been initialized ...")
 
     def __del__(self):
-        """
-        :arg
-
-        """
         self.__db_connection.close()
 
     def view_tables(self):
@@ -80,14 +68,6 @@ class Database:
         logging.info("Table %s has columns: %s", table, str(columns))
         return columns
 
-    def append_to_table(self, dataframe, table):
-        logging.info("Adding dataframe to table %s", table)
-        cursor = self.cur
-        dataframe.to_sql(name=table,
-                         con=cursor.connection,
-                         if_exists='append',
-                         index=False,
-                         method=None)
 
     def create_tables(self, db_schema):
         logging.info("Creating database tables with SQL schema ...")
@@ -113,11 +93,11 @@ class Database:
                                  sql=sql,
                                  parse_dates=has_dt)
 
-    def replace_table(self, dataframe, table):
-        logging.info("Replacing database table with dataframe ...")
+    def update_table(self, dataframe, table, if_exists='append'):
+        logging.info("Adding dataframe to table %s", table)
         cursor = self.cur
         dataframe.to_sql(name=table,
                          con=cursor.connection,
-                         if_exists='replace',
+                         if_exists=if_exists,
                          index=False,
                          method=None)

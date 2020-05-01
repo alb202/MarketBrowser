@@ -12,7 +12,6 @@ from data_status import DataStatus
 from database import Database
 from timeseries import TimeSeries
 
-# logging.basicConfig(filemode='w', filename='../development.log', level=logging.DEBUG)
 logging.basicConfig(level=logging.DEBUG)
 
 DB_LOCATION = "../db/database.sqlite"
@@ -36,7 +35,6 @@ def main(args):
     for i in last_business_hours.__dict__.items():
         print(i)
 
-    # print("Last update: ")
     last_update = data_status.get_last_update(
         symbol=args['symbol'],
         function=args['function'],
@@ -55,13 +53,13 @@ def main(args):
     print(get_new_data)
 
     query = TimeSeries()
-    if not get_new_data:
-        query.get_data_from_database(
-            con=db_connect,
-            has_dt=True,
-            function=args['function'],
-            symbol=args['symbol'],
-            interval=args['interval'])
+    # if not get_new_data:
+    query.get_data_from_database(
+        con=db_connect,
+        has_dt=True,
+        function=args['function'],
+        symbol=args['symbol'],
+        interval=args['interval'])
 
     if get_new_data:
         query.get_data_from_server(
@@ -89,12 +87,16 @@ def main(args):
         print("data status table: ", data_status.data.dtypes)
         print("data status table: ", data_status.data)
         data_status.save_table()
+        db_connect.update_table(
+            dataframe=query.new_data,
+            table=args["function"],
+            if_exists="append")
 
-    print(query.data)
-    print(query.data.dtypes)
-    db_connect.append_to_table(dataframe=query.data, table=args["function"])
-
+    print(query.get_data())
+    print(query.get_data().dtypes)
     db_connect.__del__()
+    return query.get_data()
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Get stock or etf data ...')

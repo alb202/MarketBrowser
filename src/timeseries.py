@@ -51,7 +51,8 @@ class TimeSeries:
         self.symbol = ''
         self.interval = ''
         self.raw_data = None
-        self.data = None
+        self.new_data = None
+        self.db_data = None
         self.meta_data = None
         self.has_data = False
 
@@ -62,7 +63,7 @@ class TimeSeries:
         # query = utilities.make_query(symbol, function, interval)
         logging.info("Getting data from database ...")
         try:
-            self.data = con.table_to_pandas(
+            self.db_data = con.table_to_pandas(
                 sql=utilities.make_sql(symbol=symbol,
                                        function=function,
                                        interval=interval),
@@ -72,7 +73,7 @@ class TimeSeries:
             logging.info(error)
             exit(2)
         finally:
-            if isinstance(self.data, pd.DataFrame):
+            if isinstance(self.db_data, pd.DataFrame):
                 self.has_data = True
                 logging.info("Object loaded with data from database")
 
@@ -108,13 +109,6 @@ class TimeSeries:
             return
         meta_data = self.raw_data["Meta Data"]
 
-        # if (len(meta_data['3. Last Refreshed'].split(" ")) == 2):
-        #     # date = convert_string_to_datetime(date, DATE_FORMAT)
-        #     time = convert_string_to_datetime(
-        #     meta_data['3. Last Refreshed'].split(" ")[1],
-        #     TIME_FORMAT)
-        # else:
-        #     time = None
         self.meta_data = pd.DataFrame.from_dict(
             {'symbol': [self.symbol],
              'function': [self.function],
@@ -140,6 +134,10 @@ class TimeSeries:
         results_df['symbol'] = self.symbol
         results_df = utilities.set_column_dtypes(dataframe=results_df,
                                                  dtypes=utilities.DTYPES)
+        if 'dividend_amount' in results_df.columns:
+            results_df = results_df.query("(volume > 0) | (dividend_amount > 0)")
+        else:
+            results_df = results_df.query("volume > 0")
 
         if "split_coefficient" in results_df.columns:
             column_order = utilities.DATA_COLUMNS3
@@ -152,4 +150,19 @@ class TimeSeries:
 
         logging.info("Dataframe created with these columns: %s", str(list(results_df.columns)))
 
-        self.data = results_df
+        results_df = results_df.drop_duplicates(ignore_index=True).merge(
+            self.db_data,
+            how="outer",
+            on=list(results_df.columns),
+            indicator=True).query('_merge == "left_only"').drop('_merge', axis=1)
+
+        self.new_data = results_df \
+            .sort_values('datetime') \
+            .reset_index(drop=True)
+
+    def get_data(self):
+        return pd.concat(
+            [self.db_data, self.new_data]) \
+            .drop_duplicates(ignore_index=True) \
+            .sort_values('datetime') \
+            .reset_index(drop=True)
