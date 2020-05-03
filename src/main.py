@@ -44,12 +44,8 @@ def main(args):
 
     last_market_time = last_business_hours.get_last_market_time()
 
-    if last_update is None:
-        get_new_data = True
-    elif last_update < last_market_time:
-        get_new_data = True
-    else:
-        get_new_data = False
+    get_new_data = utilities.get_new_data_test(last_update, last_market_time)
+
     print(get_new_data)
 
     query = TimeSeries()
@@ -92,10 +88,10 @@ def main(args):
             table=args["function"],
             if_exists="append")
 
-    print(query.get_data())
-    print(query.get_data().dtypes)
+    print(query.retrieve_data())
+    print(query.retrieve_data().dtypes)
     db_connect.__del__()
-    return query.get_data()
+    return query.retrieve_data()
 
 
 def parse_args():

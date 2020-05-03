@@ -7,7 +7,6 @@ import utilities
 
 STATUS_TABLE_NAME = 'DATA_STATUS'
 
-
 class DataStatus:
     """
     Class DataStatus holds the most recent update time for each query

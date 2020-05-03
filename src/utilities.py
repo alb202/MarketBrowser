@@ -81,3 +81,21 @@ def validate_args(args):
         exit(2)
     else:
         return args
+
+
+def get_column_order(columns):
+    if "split_coefficient" in columns:
+        return DATA_COLUMNS3
+    elif "adjusted_close" in columns:
+        return DATA_COLUMNS2
+    else:
+        return DATA_COLUMNS1
+
+
+def get_new_data_test(dt1, dt2):
+    if dt1 is None:
+        return True
+    elif dt1 < dt2:
+        return True
+    else:
+        return False

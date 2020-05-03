@@ -36,39 +36,6 @@ class Database:
         logging.info("Viewing tables in database ...")
         return tables
 
-    def does_table_exist(self, table):
-        """
-
-        :param table:
-        :return:
-        """
-        cursor = self.cur
-        tables = [i[0] for i in list(
-            cursor.execute("SELECT name FROM sqlite_master WHERE type='table';"))]
-        logging.info("Checking if table %s exists: %s", table, str(table in tables))
-        return table in tables
-
-    def create_ts_table(self, table):
-        """
-
-        :param table:
-        :type table:
-        """
-        logging.info("Creating table %s ...", table)
-        cursor = self.cur
-        cursor.execute(f"CREATE TABLE IF NOT EXISTS {table}"
-                       f"(symbol TEXT NOT NULL, datetime TEXT NOT NULL, open REAL, "
-                       f"high REAL, low REAL, close REAL, volume INTEGER);")
-        logging.info("Created table %s", table)
-
-    def view_table_info(self, table: str) -> list:
-        cursor = self.cur
-        cursor = cursor.execute(f'select * from {table}')
-        columns = [i[0] for i in cursor.description]
-        logging.info("Table %s has columns: %s", table, str(columns))
-        return columns
-
-
     def create_tables(self, db_schema):
         logging.info("Creating database tables with SQL schema ...")
         cursor = self.cur
@@ -83,8 +50,7 @@ class Database:
     def load_data_table(self, table, has_dt=False):
         logging.info("Loading all data from table %s", table)
         sql = "SELECT * FROM %s" % table
-        return self.table_to_pandas(sql=sql,
-                                    has_dt=has_dt)
+        return self.table_to_pandas(sql=sql, has_dt=has_dt)
 
     def table_to_pandas(self, sql, has_dt=False):
         logging.info("Reading from database ...")

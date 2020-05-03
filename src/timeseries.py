@@ -47,9 +47,9 @@ class TimeSeries:
 
     def __init__(self):
         logging.info("Creating TimeSeries object ...")
-        self.function = ''
-        self.symbol = ''
-        self.interval = ''
+        self.function = None
+        self.symbol = None
+        self.interval = None
         self.raw_data = None
         self.new_data = None
         self.db_data = None
@@ -139,14 +139,7 @@ class TimeSeries:
         else:
             results_df = results_df.query("volume > 0")
 
-        if "split_coefficient" in results_df.columns:
-            column_order = utilities.DATA_COLUMNS3
-        elif "adjusted_close" in results_df.columns:
-            column_order = utilities.DATA_COLUMNS2
-        else:
-            column_order = utilities.DATA_COLUMNS1
-
-        results_df = results_df[column_order]
+        results_df = results_df[utilities.get_column_order(results_df.columns)]
 
         logging.info("Dataframe created with these columns: %s", str(list(results_df.columns)))
 
@@ -160,7 +153,7 @@ class TimeSeries:
             .sort_values('datetime') \
             .reset_index(drop=True)
 
-    def get_data(self):
+    def retrieve_data(self):
         return pd.concat(
             [self.db_data, self.new_data]) \
             .drop_duplicates(ignore_index=True) \
