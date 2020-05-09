@@ -14,17 +14,16 @@ from timeseries import TimeSeries
 
 logging.basicConfig(level=logging.DEBUG)
 
-DB_LOCATION = "../db/database.sqlite"
-DB_SCHEMA = "../db/schema.sql"
 
 
 def main(args):
     logging.info("Running...")
-    db_connect = Database(
-        db_location=DB_LOCATION,
-        db_schema=DB_SCHEMA)
+    cfg = utilities.Config("../resources/config.txt")
+    db = Database(cfg.view_db_location())
+    # alphavantage = utilities.Access()
 
-    data_status = DataStatus(db_connect)
+    data_status = DataStatus()
+    data_status.get_data_status(db)
     print("data status table: ", data_status.data)
 
     last_business_hours = market_time.LastBusinessHours(function=args['function'])
@@ -48,10 +47,11 @@ def main(args):
 
     print(get_new_data)
 
-    query = TimeSeries()
+    query = TimeSeries(cfg=cfg)
+
     # if not get_new_data:
     query.get_data_from_database(
-        con=db_connect,
+        con=db,
         has_dt=True,
         function=args['function'],
         symbol=args['symbol'],
@@ -82,16 +82,15 @@ def main(args):
                 interval=args['interval'])
         print("data status table: ", data_status.data.dtypes)
         print("data status table: ", data_status.data)
-        data_status.save_table()
-        db_connect.update_table(
+        data_status.save_table(db=db)
+        db.update_table(
             dataframe=query.new_data,
             table=args["function"],
             if_exists="append")
 
-    print(query.retrieve_data())
-    print(query.retrieve_data().dtypes)
-    db_connect.__del__()
-    return query.retrieve_data()
+    print(query.view_data())
+    print(query.view_data().dtypes)
+    return query.view_data()
 
 
 def parse_args():

@@ -3,9 +3,10 @@
 """
 import logging
 
+import models
+import pandas as pd
 import utilities
 
-STATUS_TABLE_NAME = 'DATA_STATUS'
 
 class DataStatus:
     """
@@ -34,14 +35,34 @@ class DataStatus:
     save_table():
         Save the data status table back to the database
     """
-    def __init__(self, database_connection):
-        self.table = STATUS_TABLE_NAME
-        self.data = database_connection.load_data_table(self.table, has_dt=True)
-        self.database = database_connection
-        logging.info("Created DataStatus object with %s rows", str(len(self.data)))
 
+    status_table_name = 'DATA_STATUS'
+    datetime_format = '%Y-%m-%d %H:%M:%S'
+
+    def __init__(self):
+        self.table = models.DataStatus()
+
+    #     # self.table = STATUS_TABLE_NAME
+    #     self.data = database_connection.load_data_table(self.table, has_dt=True)
+    #     self.engine = engine
+    #     logging.info("Created DataStatus object with %s rows", str(len(self.data)))
+
+    def get_data_status(self, db):
+        has_dt = {"datetime": self.datetime_format}
+        # sql = self.table.select()
+        ds = pd.read_sql_table(
+            table_name=self.status_table_name,
+            con=db.engine,
+            parse_dates=has_dt,
+            index_col=None)
+        ds['datetime'] = ds['datetime'].dt.tz_localize(utilities.UTC_TZ)
+        self.data = ds
+
+    #     You shouldn't need to pass the database connection to this class at all. Just call the database class when calling
+    #     the function and have it call the correct table
+    #  to save the table, do the same
     def update_status_entry(self, symbol, function, interval=None):
-        query = utilities.make_query(symbol, function, interval)
+        query = utilities.make_pandas_query(symbol, function, interval)
         self.data.loc[self.data.eval(query), 'datetime'] = utilities.get_current_time()
 
     def add_status_entry(self, symbol, function, interval=None):
@@ -52,7 +73,7 @@ class DataStatus:
 
     def get_last_update(self, symbol, function, interval=None):
         logging.info("Getting the data status table")
-        query = utilities.make_query(symbol, function, interval)
+        query = utilities.make_pandas_query(symbol, function, interval)
         print("get last update query: ", query)
         results = self.data.query(query).reset_index(drop=True)
         print("Get last update results: ", results)
@@ -61,5 +82,5 @@ class DataStatus:
         print("Last update datetime column: ", results['datetime'])
         return results['datetime'][0] if len(results) > 0 else None
 
-    def save_table(self):
-        self.database.update_table(self.data, "DATA_STATUS", "replace")
+    def save_table(self, db):
+        db.update_table(self.data, "DATA_STATUS", "replace")

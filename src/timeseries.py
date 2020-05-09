@@ -9,14 +9,14 @@ import logging
 import pandas as pd
 import requests
 import utilities
+from pandas.tseries.offsets import BDay
 
-API_KEY = "5V11PBP7KPJDDNUP"
-URL = "https://www.alphavantage.co/query?"
-RETURN_FORMAT = "json"
+# API_KEY = "5V11PBP7KPJDDNUP"
+# URL = "https://www.alphavantage.co/query?"
+# RETURN_FORMAT = "json"
 
 DATE_FORMAT = '%Y-%m-%d'
 DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-
 
 
 def convert_string_to_datetime(string, str_format):
@@ -45,7 +45,7 @@ def format_column_names(names):
 
 class TimeSeries:
 
-    def __init__(self):
+    def __init__(self, cfg):
         logging.info("Creating TimeSeries object ...")
         self.function = None
         self.symbol = None
@@ -55,19 +55,20 @@ class TimeSeries:
         self.db_data = None
         self.meta_data = None
         self.has_data = False
+        self.api_cfg = cfg
+        self.isBusinessDay = BDay().onOffset
 
     def get_data_from_database(self, con, function, symbol, has_dt=False, interval=None):
         self.function = function
         self.symbol = symbol
         self.interval = interval
-        # query = utilities.make_query(symbol, function, interval)
         logging.info("Getting data from database ...")
+        where_dict = {'table': function, 'where': {'symbol': symbol}}
+        if interval is not None:
+            where_dict['where']['interval'] = interval
         try:
-            self.db_data = con.table_to_pandas(
-                sql=utilities.make_sql(symbol=symbol,
-                                       function=function,
-                                       interval=interval),
-                has_dt=has_dt)
+            self.db_data = con.query_to_pandas(
+                where_dict={'table': function, 'where': {'symbol': symbol}}, has_dt=has_dt)
         except requests.ConnectionError as error:
             logging.debug("Cannot get data from database!")
             logging.info(error)
@@ -85,14 +86,16 @@ class TimeSeries:
         parameters = {"function": self.function,
                       "symbol": self.symbol,
                       "interval": self.interval,
-                      "outputsize": "full",
-                      "apikey": API_KEY,
-                      "datatype": RETURN_FORMAT
+                      "outputsize": self.api_cfg.view_outputsize(),
+                      "apikey": self.api_cfg.view_apikey(),
+                      "datatype": self.api_cfg.view_format()
                       }
 
         logging.info("Getting data with parameters: %s", str(parameters))
         try:
-            self.raw_data = requests.get(url=URL, params=parameters).json()
+            self.raw_data = requests.get(
+                url=self.api_cfg.view_url(),
+                params=parameters).json()
         except requests.RequestException as error:
             logging.debug("Data grab failed!")
             logging.info(error)
@@ -128,18 +131,23 @@ class TimeSeries:
             self.raw_data[list(
                 filter(lambda x: x != "Meta Data", self.raw_data.keys())
             )[0]]).transpose()
+
         results_df.columns = format_column_names(results_df.columns)
         results_df.reset_index(drop=False, inplace=True)
         results_df.rename(columns={"index": "datetime"}, inplace=True)
         results_df['symbol'] = self.symbol
+        if self.interval is not None:
+            results_df['interval'] = self.interval
         results_df = utilities.set_column_dtypes(dataframe=results_df,
                                                  dtypes=utilities.DTYPES)
         if 'dividend_amount' in results_df.columns:
-            results_df = results_df.query("(volume > 0) | (dividend_amount > 0)")
+            results_df = results_df[
+                (results_df['datetime'].map(self.isBusinessDay)) |
+                (results_df['dividend_amount'] > 0)]
         else:
-            results_df = results_df.query("volume > 0")
+            results_df = results_df[results_df['datetime'].map(self.isBusinessDay)]
 
-        results_df = results_df[utilities.get_column_order(results_df.columns)]
+        results_df = results_df[utilities.time_series_column_order(results_df.columns)]
 
         logging.info("Dataframe created with these columns: %s", str(list(results_df.columns)))
 
@@ -153,7 +161,7 @@ class TimeSeries:
             .sort_values('datetime') \
             .reset_index(drop=True)
 
-    def retrieve_data(self):
+    def view_data(self):
         return pd.concat(
             [self.db_data, self.new_data]) \
             .drop_duplicates(ignore_index=True) \

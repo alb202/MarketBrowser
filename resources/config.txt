@@ -1,0 +1,5 @@
+db_location = db/database99.sqlite
+api_url = https://www.alphavantage.co/query?
+return_format = json
+outputsize = full
+api_key_path =  resources/api.key
