@@ -1,86 +1,72 @@
+"""Data status tracking
 """
-
-"""
-import logging
-
+import logger
 import models
 import pandas as pd
 import utilities
 
+log = logger.get_logger(__name__)
+
 
 class DataStatus:
+    """Class for tracking data status
     """
-    Class DataStatus holds the most recent update time for each query
-    ...
-
-    Attributes
-    ----------
-    table : str
-        Name of database table holding the data status
-
-    data : Pandas DataFrame
-        DataFrame containing data status table
-
-    database : Sqlite Connection
-        Sqlite database connection passed to instantiation
-
-    Methods
-    -------
-    update_status_entry(symbol, function, interval=None)
-        Update the data status for a single symbol and function
-    add_status_entry(symbol, function, interval=None)
-        Add a row to the data status table for a unique symbol and function
-    get_last_update(symbol, function, interval=None):
-        Get the last update time for a symbol and function
-    save_table():
-        Save the data status table back to the database
-    """
-
     status_table_name = 'DATA_STATUS'
     datetime_format = '%Y-%m-%d %H:%M:%S'
 
-    def __init__(self):
+    def __init__(self, cfg):
+        log.info("Creating data status object")
         self.table = models.DataStatus()
+        self.data = None
+        self.cfg = cfg
 
-    #     # self.table = STATUS_TABLE_NAME
-    #     self.data = database_connection.load_data_table(self.table, has_dt=True)
-    #     self.engine = engine
-    #     logging.info("Created DataStatus object with %s rows", str(len(self.data)))
-
-    def get_data_status(self, db):
+    def get_data_status(self, database):
+        """Get data statuses from database
+        """
+        log.info("Getting data status table from database")
         has_dt = {"datetime": self.datetime_format}
-        # sql = self.table.select()
-        ds = pd.read_sql_table(
+        datastatus = pd.read_sql_table(
             table_name=self.status_table_name,
-            con=db.engine,
+            con=database.engine,
             parse_dates=has_dt,
             index_col=None)
-        ds['datetime'] = ds['datetime'].dt.tz_localize(utilities.UTC_TZ)
-        self.data = ds
+        datastatus['datetime'] = datastatus['datetime'].dt.tz_localize(self.cfg.common_timezone())
+        self.data = datastatus
 
-    #     You shouldn't need to pass the database connection to this class at all. Just call the database class when calling
-    #     the function and have it call the correct table
-    #  to save the table, do the same
     def update_status_entry(self, symbol, function, interval=None):
+        """Update the data status for a symbol/function/interval
+        """
+        log.info(f"Updating data status for symbol:{symbol}  "
+                 f"function:{function}  interval:{interval}")
         query = utilities.make_pandas_query(symbol, function, interval)
-        self.data.loc[self.data.eval(query), 'datetime'] = utilities.get_current_time()
+        self.data.loc[self.data.eval(query), 'datetime'] = utilities.get_current_time(
+            set_to_utc=True,
+            old_timezone=self.cfg.market_timezone(),
+            new_timezone=self.cfg.common_timezone())
 
     def add_status_entry(self, symbol, function, interval=None):
+        """Add the data status for a symbol/function/interval
+        """
+        log.info(f"Adding data status for symbol:{symbol}  "
+                 f"function:{function}  interval:{interval}")
         self.data.loc[len(self.data), :] = [symbol,
                                             function,
                                             interval,
-                                            utilities.get_current_time()]
+                                            utilities.get_current_time(
+                                                set_to_utc=True,
+                                                old_timezone=self.cfg.market_timezone(),
+                                                new_timezone=self.cfg.common_timezone())]
 
     def get_last_update(self, symbol, function, interval=None):
-        logging.info("Getting the data status table")
+        """Get the data status for a symbol/function/interval
+        """
+        log.info(f"Get last update for symbol:{symbol}  function:{function}  interval:{interval}")
         query = utilities.make_pandas_query(symbol, function, interval)
-        print("get last update query: ", query)
         results = self.data.query(query).reset_index(drop=True)
-        print("Get last update results: ", results)
-        print("Get last update results type: ", type(results))
-        print("Get last update results length: ", len(results))
-        print("Last update datetime column: ", results['datetime'])
         return results['datetime'][0] if len(results) > 0 else None
 
-    def save_table(self, db):
-        db.update_table(self.data, "DATA_STATUS", "replace")
+    def save_table(self, database):
+        """Save the data status dataframe to a table
+        """
+        log.info("Saving data status table to datebase")
+        database.update_table(self.data, "DATA_STATUS", "replace")

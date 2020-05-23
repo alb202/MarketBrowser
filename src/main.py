@@ -4,72 +4,89 @@ It is for the core application functionality
 """
 
 import argparse
-import logging
 
+import logger
 import market_time
 import utilities
+from config import Config
 from data_status import DataStatus
 from database import Database
 from timeseries import TimeSeries
 
-logging.basicConfig(level=logging.DEBUG)
+# import datetime as dt
 
+log = logger.get_logger(__name__)
 
 
 def main(args):
-    logging.info("Running...")
-    cfg = utilities.Config("../resources/config.txt")
-    db = Database(cfg.view_db_location())
-    # alphavantage = utilities.Access()
+    """Retrieve most up-to-date time series data for a single symbol/function
+    """
+    log.info('<<< Starting MarketBrowser >>>')
+    log.info('<<< Loading config and connecting to database >>>')
+    cfg = Config("../resources/config.txt")
+    db_connection = Database(cfg.view_db_location())
+    db_connection.check_database()
 
-    data_status = DataStatus()
-    data_status.get_data_status(db)
-    print("data status table: ", data_status.data)
+    log.info('<<< Loading data status >>>')
+    data_status = DataStatus(cfg)
+    data_status.get_data_status(db_connection)
+    #
+    # aaa = {'table': 'TIME_SERIES_MONTHLY',
+    #        'where': {'symbol': 'MSFT',
+    #                  # 'datetime': dt.datetime(year=2020, month=5, day=15, hour=0, minute=0, second=0).date(),
+    #                  'open': 64.37#,
+    #                  # 'high': 53.09,
+    #                  # 'low': 52.53,
+    #                  # 'close': 53.0,
+    #                  # 'volume': 1269922,
+    #                  # 'adjusted_close': 53.03,
+    #                  # 'dividend_amount': 0.0
+    #                  }}
+    # DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
+    # DATE_FORMAT = '%Y-%m-%d'
+    #
+    # values = {
+    #     'table': 'TIME_SERIES_INTRADAY',
+    #     'where': {
+    #         'symbol': 'TSLA',
+    #         'interval': '5min',
+    #         #
+    #         'datetime': dt.datetime(year=2020, month=5, day=15, hour=15, minute=50, second=0)#.date()#.date()#.strftime(DATE_FORMAT)
+    #         # 'datetime': '2020-05-15 00:00:00.000000'
+    #         # 'low': 173.8,
+    #         # 'open': 175.8,
+    #     }}
+    # print('values: ', values)
+    # a = db_connection.delete_record(values=values)
+    # # a = db_connection.get_record(values=values)
+    # print('a', a)
+    # import sqlalchemy as sa
 
-    last_business_hours = market_time.LastBusinessHours(function=args['function'])
-    # last_business_hours = market_time.LastBusinessHours(
-    #     function=args['function'],
-    #     testdate=[2020, 3, 24],
-    #     testtime=[12, 25, 15])
-    for i in last_business_hours.__dict__.items():
-        print(i)
-
+    log.info('<<< Checking market status >>>')
+    # log.info(f"Last market time: {last_business_hours.view_last_market_time()}")
+    last_business_hours = market_time.LastBusinessHours(function=args['function'], cfg=cfg)
+    last_market_time = last_business_hours.view_last_market_time()
     last_update = data_status.get_last_update(
         symbol=args['symbol'],
         function=args['function'],
         interval=args['interval'])
-
-    print("Last update: ", last_update)
-
-    last_market_time = last_business_hours.get_last_market_time()
-
     get_new_data = utilities.get_new_data_test(last_update, last_market_time)
 
-    print(get_new_data)
-
-    query = TimeSeries(cfg=cfg)
-
-    # if not get_new_data:
-    query.get_data_from_database(
-        con=db,
-        has_dt=True,
-        function=args['function'],
-        symbol=args['symbol'],
-        interval=args['interval'])
+    log.info('<<< Getting timeseries data >>>')
+    query = TimeSeries(cfg=cfg,
+                       function=args['function'],
+                       symbol=args['symbol'],
+                       interval=args['interval'])
+    query.get_data_from_database(con=db_connection, has_dt=True)
 
     if get_new_data:
-        query.get_data_from_server(
-            function=args['function'],
-            symbol=args['symbol'],
-            interval=args['interval'])
-
-        print("query.has_data", query.has_data)
-        query.process_meta_data()
+        log.info('<<< Getting most recent time series data >>>')
+        # query.remove_last_entry(delete_from_db=db_connection)
+        query.get_data_from_server()
+        # query.process_meta_data()
         query.process_data()
 
-        print(query.meta_data)
-        print(query.meta_data.dtypes)
-
+        log.info('<<< Saving update information to database >>>')
         if last_update is None:
             data_status.add_status_entry(
                 symbol=args['symbol'],
@@ -80,20 +97,21 @@ def main(args):
                 symbol=args['symbol'],
                 function=args['function'],
                 interval=args['interval'])
-        print("data status table: ", data_status.data.dtypes)
-        print("data status table: ", data_status.data)
-        data_status.save_table(db=db)
-        db.update_table(
-            dataframe=query.new_data,
-            table=args["function"],
-            if_exists="append")
+        log.info("<<< Saving new data to database >>>")
+        # if (last_update > last_business_hours.view_last_complete_period()):
+        #     print("Obsolete data needs to be deleted")
+        # query.delete_obsolete_data(database=db_connection,
+        #                            last_complete=last_business_hours.view_last_complete_period())
+        query.save_new_data(database=db_connection)
+        data_status.save_table(database=db_connection)
 
-    print(query.view_data())
-    print(query.view_data().dtypes)
     return query.view_data()
 
 
 def parse_args():
+    """Parse the command line arguments and return dictionary
+    """
+    log.info("Parsing input arguments")
     parser = argparse.ArgumentParser(description='Get stock or etf data ...')
     parser.add_argument('--function', metavar='FUNCTION', type=str, nargs='?',
                         default="TIME_SERIES_DAILY",
@@ -108,7 +126,7 @@ def parse_args():
                         required=False, choices=["5min", "15min", "30min", "60min"],
                         help='Get the time interval')
     args = parser.parse_args().__dict__
-    logging.info("Arguments: %s", str(args))
+    log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)
 
 

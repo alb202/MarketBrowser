@@ -3,14 +3,13 @@
 It contains classes for general functionality
 """
 import datetime as dt
-import logging
+import math
+import sys
 
-import market_time
+import logger
 import numpy as np
-import pytz
 
-MARKET_TZ = pytz.timezone(market_time.MARKET_TZ_CODE)
-UTC_TZ = pytz.timezone(market_time.UTC_TZ_CODE)
+log = logger.get_logger(__name__)
 
 DTYPES = {"symbol": str,
           "datetime": 'datetime64',
@@ -32,130 +31,88 @@ DATA_COLUMNS3 = ["symbol", "datetime", "open", "high", "low", "close", "adjusted
 
 
 def set_column_dtypes(dataframe, dtypes):
-    logging.info("Setting column dtypes: %s", str(dtypes))
+    """Set the dtypes for the columns
+    """
+    log.info(f"Setting column dtypes: {str(dtypes)}")
     for column in dataframe.columns:
         dataframe = dataframe.astype({column: dtypes[column]})
     return dataframe
 
 
 def format_datetime(old_date, date_format):
+    """Format a datetime object
+    """
+    log.info("Formatting datetime")
     return dt.datetime.strptime(old_date.strftime(date_format), date_format)
 
 
-def get_current_time(date_format='%Y-%m-%d %H:%M:%S',
-                     set_to_utc=True,
-                     old_timezone=MARKET_TZ,
-                     new_timezone=UTC_TZ):
+def get_current_time(date_format='%Y-%m-%d %H:%M:%S', old_timezone=None,
+                     new_timezone=None, set_to_utc=True):
+    """Get the current datetime
+    """
+    log.info("Getting the current datetime")
     current_time = format_datetime(dt.datetime.now(), date_format)
     if set_to_utc:
         current_time = convert_between_timezones(current_time, old_timezone, new_timezone)
+    log.info(f"Current datetime: {str(current_time)}")
     return current_time
 
 
 def convert_between_timezones(old_datetime, old_timezone, new_timezone):
+    """Convert datetime between two timezones
+    """
     return old_timezone.localize(old_datetime).astimezone(new_timezone)
 
 
 def make_pandas_query(symbol, function, interval=None):
+    """Make a pandas dataframe query for a symbol/function/interval
+    """
+    log.info("Make pandas query")
     query_dict = {'symbol': symbol, 'function': function}
     if interval is not None:
         query_dict['interval'] = interval
-    query = ' & '.join(["({} == '{}')".format(k, v) for k, v in query_dict.items()])
-    print(query)
-    return query
-
-
-def make_sql(symbol, function, interval=None):
-    sql = f"SELECT * FROM {function} WHERE symbol=='{symbol}';"
-    print('Made sql:', sql)
-    return sql
+    return ' & '.join(["({} == '{}')".format(k, v) for k, v in query_dict.items()])
 
 
 def validate_args(args):
+    """Validate command line arguments
+    """
+    log.info("Validate the command line arguments")
     if ('INTRADAY' not in args['function']) & \
             (args['interval'] is not None) & \
             (args['interval'] != ''):
-        logging.info('Only intraday function requires intervals! Exiting ... ')
-        exit(2)
+        log.info('Only intraday function requires intervals! Exiting ... ')
+        sys.exit()
     elif (args['symbol'] is None) | (args['symbol'] == ''):
-        logging.info('The symbol must be a string of at least 1 character! Exiting ... ')
-        exit(2)
+        log.info('The symbol must be a string of at least 1 character! Exiting ... ')
+        sys.exit()
     else:
         return args
 
 
 def time_series_column_order(columns):
+    """Order the columns in a pandas dataframe for time series data
+    """
+    log.info("Set the column order")
     if "split_coefficient" in columns:
         return DATA_COLUMNS3
-    elif "adjusted_close" in columns:
+    if "adjusted_close" in columns:
         return DATA_COLUMNS2
-    else:
-        return DATA_COLUMNS1
+    return DATA_COLUMNS1
 
 
 def get_new_data_test(dt1, dt2):
-    print("Datetimes being compared: ", dt1, "  ", dt2)
+    """Determine if new data should be retrieved from api
+    """
+    log.info(f"Compare datetimes: {dt1} {dt2}")
     if dt1 is None:
         return True
-    elif dt1 < dt2:
+    if dt1 < dt2:
         return True
-    else:
-        return False
+    return False
 
 
-class Config:
-    def __init__(self, path):
-        config = self.load_config(path)
-        self.db_location = "../" + config['db_location']
-        self.api_url = config['api_url']
-        self.outputsize = config['outputsize']
-        self.return_format = config['return_format']
-        self.api_key_path = "../" + config['api_key_path']
-        print(self.api_key_path)
-        self._key = self.load_key(self.api_key_path)
-
-    def load_key(self, path):
-        try:
-            with open("./" + path, 'r') as file:
-                data = file.read().replace('\n', '').replace(' ', '').replace('\t', '')
-        except (IOError, FileNotFoundError):
-            print("Api key file not found. Exiting!")
-            exit()
-        except:
-            print("Error loading key. Exiting!")
-            exit()
-        else:
-            return data
-
-    def load_config(self, path):
-        try:
-            with open("./" + path, 'r') as file:
-                cfg = dict()
-                for line in file:
-                    print(line)
-                    splt_line = line.split("=")
-                    print(splt_line)
-                    cfg[splt_line[0].strip()] = splt_line[1].strip()
-        except (IOError, FileNotFoundError):
-            print("Config file not found. Exiting!")
-            exit()
-        except:
-            print("Error loading config. Exiting!")
-            exit()
-        else:
-            return cfg
-
-    def view_url(self):
-        return self.api_url
-
-    def view_format(self):
-        return self.return_format
-
-    def view_apikey(self):
-        return self._key
-
-    def view_outputsize(self):
-        return self.outputsize
-
-    def view_db_location(self):
-        return self.db_location
+def round_down(x, base=5):
+    """Round a number down to the nearest multiple of <base>
+    """
+    return math.floor(x / base) * base

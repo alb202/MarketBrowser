@@ -4,10 +4,9 @@ import dash_html_components as html
 import main
 import pandas as pd
 import plotly.graph_objects as go
-# import plotly.express as px
 from dash.dependencies import Output, Input, State
 
-external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
+EXTERNAL_STYLESHEETS = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 
 app = dash.Dash(suppress_callback_exceptions=True)
 
@@ -64,14 +63,15 @@ def make_df_for_plotting(n_clicks, symbol, function, interval):
             (n_clicks == 0) | \
             (symbol is None) | \
             (function is None):
-        results = pd.DataFrame({'datetime': [], 'open': [],
-                                'high': [], 'low': [], 'close': []})
+        return pd.DataFrame({'datetime': [], 'open': [],
+                             'high': [], 'low': [], 'close': []})
     else:
-        results = main.main(
+        # if 'INTRADAY' not in function:
+        #     interval = None
+        return main.main(
             {'function': function,
              'symbol': symbol.upper(),
              'interval': interval})
-    return results
 
 
 def make_rangebreaks(function):
@@ -81,13 +81,13 @@ def make_rangebreaks(function):
             dict(values=["2015-12-25", "2016-01-01"]),
             dict(pattern='hour', bounds=[16, 9.5])  # hide Christmas and New Year's
         ]
-    elif 'DAILY' in function:
+
+    if 'DAILY' in function:
         return [
             dict(bounds=["sat", "mon"]),  # hide weekends
             dict(values=["2015-12-25", "2016-01-01"])
         ]
-    else:
-        return
+    return None
 
 
 @app.callback(
@@ -97,6 +97,8 @@ def make_rangebreaks(function):
      State('input_function', 'value'),
      State('input_interval', 'value')])
 def update_output(n_clicks, input_symbol, input_function, input_interval):
+    if "INTRADAY" not in input_function:
+        input_interval = None
     fig = make_figure(
         layout=dict(
             title=input_symbol,

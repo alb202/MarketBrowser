@@ -1,5 +1,10 @@
-db_location = db/database99.sqlite
+db_location = db/database.sqlite
 api_url = https://www.alphavantage.co/query?
 return_format = json
 outputsize = full
 api_key_path =  resources/api.key
+user_timezone = US/Eastern
+market_timezone = US/Eastern
+common_timezone = UTC
+market_open = 9,30,0
+market_close = 16,0,0
