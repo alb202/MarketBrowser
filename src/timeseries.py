@@ -61,10 +61,14 @@ class TimeSeries:
         self.raw_data = None
         self.new_data = None
         self.db_data = None
+        self.new_dividend_data = None
+        self.db_dividend_data = None
         self.meta_data = None
         self.has_data = False
         self.cfg = cfg
         self.is_business_day = pd.tseries.offsets.BDay().is_on_offset
+
+        self.dividend_period = self.get_dividend_period()
 
     def get_data_from_database(self, con, has_dt=False):
         """Retrieve data from database table
@@ -85,13 +89,25 @@ class TimeSeries:
                 self.has_data = True
                 log.info("Object loaded with data from database")
 
+    def get_dividend_data_from_database(self, con):
+        """Retrieve data from database table
+        """
+        log.info("Getting dividend data from database ...")
+        where_dict = {'table': 'DIVIDEND',
+                      'where': {'symbol': self.symbol,
+                                'period': self.dividend_period}}
+        try:
+            self.db_dividend_data = con.query_to_pandas(
+                where_dict=where_dict, has_dt=True).sort_values('datetime').reset_index(drop=True)
+        except requests.ConnectionError as error:
+            log.warn("Cannot get dividend data from database. Exiting!")
+            log.info(error)
+            sys.exit()
+
     def get_data_from_server(self):
         """Get fresh data from API
         """
         log.info('Getting data from server')
-        # self.function = function
-        # self.symbol = symbol
-        # self.interval = interval
         parameters = {"function": self.function,
                       "symbol": self.symbol,
                       "interval": self.interval,
@@ -154,11 +170,23 @@ class TimeSeries:
         results_df = utilities.set_column_dtypes(dataframe=results_df,
                                                  dtypes=utilities.DTYPES)
         if 'dividend_amount' in results_df.columns:
-            results_df = results_df[
-                (results_df['datetime'].map(self.is_business_day)) |
-                (results_df['dividend_amount'] > 0)]
-        else:
-            results_df = results_df[results_df['datetime'].map(self.is_business_day)]
+            dividend_df = results_df[['symbol', 'datetime', 'dividend_amount']]
+            dividend_df = dividend_df.query("dividend_amount > 0")
+            if len(dividend_df) > 0:
+                dividend_df.loc[:, 'period'] = self.dividend_period
+                if self.db_dividend_data is not None:
+                    dividend_df = dividend_df.drop_duplicates(ignore_index=True).merge(
+                        self.db_dividend_data,
+                        how="outer",
+                        on=list(dividend_df.columns),
+                        indicator=True).query('_merge == "left_only"') \
+                        .drop('_merge', axis=1)
+                self.new_dividend_data = dividend_df. \
+                    drop_duplicates(). \
+                    sort_values('datetime'). \
+                    reset_index(drop=True)
+        results_df = results_df.drop('dividend_amount', axis=1)
+        results_df = results_df[results_df['datetime'].map(self.is_business_day)]
 
         log.info(f"Time series data created with columns: {str(list(results_df.columns))}")
 
@@ -175,20 +203,27 @@ class TimeSeries:
     def view_data(self):
         """Return the database data and fresh API data
         """
-        return pd.concat(
-            [self.db_data, self.new_data]) \
+        prices = pd.concat([self.db_data, self.new_data]) \
             .drop_duplicates(ignore_index=True) \
             .sort_values('datetime') \
             .reset_index(drop=True)
+        dividends = pd.concat([self.db_dividend_data, self.new_dividend_data]) \
+            .drop_duplicates(ignore_index=True) \
+            .sort_values('datetime') \
+            .reset_index(drop=True)
+        return {'prices': prices, 'dividends': dividends}
 
     def save_new_data(self, database):
         """Save the new data to the database table
         """
         log.info("Saving new data to database")
-        self.remove_nonunique_rows(database)
-        # database.update_table(dataframe=self.new_data,
-        #                       table=self.function,
-        #                       if_exists="append")
+        database.update_table(dataframe=self.new_data,
+                              table=self.function,
+                              if_exists="append")
+        if self.new_dividend_data is not None:
+            database.update_table(dataframe=self.new_dividend_data,
+                                  table='DIVIDEND',
+                                  if_exists="append")
 
     def remove_nonunique_rows(self, database):
         """Remove any non-unique rows from the database
@@ -197,8 +232,6 @@ class TimeSeries:
         if self.interval is not None:
             merge_cols.append('interval')
         value_cols = ['open', 'high', 'low', 'close', 'volume']
-        print('merge_cols: ', merge_cols)
-        print('value_cols: ', value_cols)
         df = self.new_data.merge(
             self.db_data,
             how="outer",
@@ -210,106 +243,71 @@ class TimeSeries:
             log.info("No obsolete data found in database")
             return
         query = ' | '.join(['(' + i + ' != ' + i + '_db' + ')' for i in value_cols])
-        print(query)
         df = df.query(query)
         if len(df) == 0:
             log.info("No rows with conflicting data")
-            print(df)
             return
-        print('Rows with conflicting data: ', df)
-        self.delete_dataframe_from_database(database=database, dataframe=df)
-        print("self.db_data", self.db_data)
+        self.delete_dataframe_from_database(database=database, dataframe=df, table=self.function)
         self.db_data = self.db_data.merge(
             df[merge_cols],
-            how="outer",
+            how="left",
             on=merge_cols,
             indicator=True,
             suffixes=['', '_db']
         ).query('_merge == "left_only"').drop('_merge', axis=1)
-        print("self.db_data new", self.db_data)
 
-    def delete_dataframe_from_database(self, database, dataframe):
+    def remove_nonunique_dividend_rows(self, database):
+        """Remove any non-unique dividends from the database
+        """
+        if self.new_dividend_data is None:
+            return
+        merge_cols = ['symbol', 'datetime', 'period']
+        value_cols = ['dividend_amount']
+        df = self.new_dividend_data.merge(
+            self.db_dividend_data,
+            how="outer",
+            on=merge_cols,
+            indicator=True,
+            suffixes=['', '_db']
+        ).query('_merge == "both"')
+        if len(df) == 0:
+            log.info("No obsolete dividend data found in database")
+            return
+        query = ' | '.join(['(' + i + ' != ' + i + '_db' + ')' for i in value_cols])
+        df = df.query(query)
+        if len(df) == 0:
+            log.info("No rows with conflicting data")
+            return
+        self.delete_dataframe_from_database(database=database, dataframe=df, table='DIVIDEND')
+        self.db_dividend_data = self.db_dividend_data.merge(
+            df[merge_cols],
+            how="left",
+            on=merge_cols,
+            indicator=True,
+            suffixes=['', '_db']
+        ).query('_merge == "left_only"').drop('_merge', axis=1)
+
+    def delete_dataframe_from_database(self, database, dataframe, table):
         """Delete a dataframe from the database using the current function table
         """
         for index, row in dataframe.iterrows():
             where = dict()
             where['symbol'] = row['symbol']
             where['datetime'] = row['datetime'].to_pydatetime()
-            if self.interval is not None:
+            if 'interval' in dataframe.columns:
                 where['interval'] = row['interval']
-            values = {'table': self.function,
+            if 'period' in dataframe.columns:
+                where['period'] = row['period']
+            values = {'table': table,
                       'where': where}
             log.info(f"Obsolete row: {str(values)}")
             database.delete_record(values=values)
 
-    # def remove_last_entry(self, delete_from_db=None):
-    #     """Remove the last entry from the database data
-    #     """
-    #     log.info("Removing last entry from db data")
-    #     if delete_from_db is not None:
-    #         sql = dict()
-    #         sql['table'] = self.function
-    #         sql['where'] = {key:value[0] for key, value in
-    #                         self.db_data[-1:].reset_index(drop=True).to_dict(orient='list').items()}
-    #         if "INTRADAY" not in self.function:
-    #             sql['where']['datetime'] = sql['where']['datetime'].date()
-    #         delete_from_db.delete_record(values=sql)
-    #         log.info(f"Removing data from database: {sql}")
-    #     self.db_data = self.db_data[:-1]
-
-    # def delete_obsolete_data(self, database, last_complete):
-    #     """Remove obsolete rows from database
-    #     """
-    #     log.info("Deleting obsolete data from database")
-    #     if 'INTRADAY' not in self.function:
-    #         obsolete_rows = self.db_data[self.db_data['datetime'].dt.date > last_complete.date()]
-    #     else:
-    #         obsolete_rows = self.db_data[self.db_data['datetime'] > last_complete]
-    #     print(obsolete_rows)
-    #
-    #     if obsolete_rows is not None:
-    #         for index, row in obsolete_rows.iterrows():
-    #             where = dict()
-    #             where['symbol'] = row['symbol']
-    #             where['datetime'] = row['datetime'].to_pydatetime()
-    #             if self.interval is not None:
-    #                 where['interval'] = row['interval']
-    #             values = {'table': self.function,
-    #                       'where': where}
-    #             log.info(f"Obsolete row: {str(values)}")
-    #             database.delete_record(values=values)
-    #         self.db_data = self.db_data[self.db_data['datetime'].dt.date <= last_complete.date()]
-
-    #
-    # merge_cols = ['symbol', 'datetime']
-    # if self.interval is not None:
-    #     merge_cols.append('interval')
-    # value_cols = ['open', 'high', 'low', 'close', 'volume']
-    #
-    # df = self.new_data.merge(
-    #     self.db_data,
-    #     how="outer",
-    #     on=merge_cols,
-    #     indicator=True,
-    #     suffixes=['', '_db']
-    # ).query('_merge == "both"')
-    # if df is None:
-    #     log.info("No obsolete data found in database")
-    #     return None
-    # query = ' | '.join(['(' + i + ' != ' + i + '_db' + ')' for i in value_cols])
-    # print(query)
-    # df = df.query(query)
-    # if df is None:
-    #     return None
-    # for index, row in df.iterrows():
-    #     where = dict()
-    #     where['symbol'] = row['symbol']
-    #     where['datetime'] = row['datetime']
-    #     if "INTRADAY" not in self.function:
-    #         where['datetime'] = row['datetime'].date()
-    #     if 'interval' in merge_cols:
-    #         where['interval'] = row['interval']
-    #     values = {'table': self.function, 'where': where}
-    #     log.info(f"Obsolete data values: {str(values)}")
-    #     database.delete_record(values=values)
-    #
+    def get_dividend_period(self):
+        if 'DAILY' in self.function:
+            return 'day'
+        if 'WEEKLY' in self.function:
+            return 'week'
+        if 'MONTHLY' in self.function:
+            return 'month'
+        return None

@@ -13,8 +13,6 @@ from data_status import DataStatus
 from database import Database
 from timeseries import TimeSeries
 
-# import datetime as dt
-
 log = logger.get_logger(__name__)
 
 
@@ -26,44 +24,10 @@ def main(args):
     cfg = Config("../resources/config.txt")
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
-
     log.info('<<< Loading data status >>>')
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
-    #
-    # aaa = {'table': 'TIME_SERIES_MONTHLY',
-    #        'where': {'symbol': 'MSFT',
-    #                  # 'datetime': dt.datetime(year=2020, month=5, day=15, hour=0, minute=0, second=0).date(),
-    #                  'open': 64.37#,
-    #                  # 'high': 53.09,
-    #                  # 'low': 52.53,
-    #                  # 'close': 53.0,
-    #                  # 'volume': 1269922,
-    #                  # 'adjusted_close': 53.03,
-    #                  # 'dividend_amount': 0.0
-    #                  }}
-    # DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S.%f'
-    # DATE_FORMAT = '%Y-%m-%d'
-    #
-    # values = {
-    #     'table': 'TIME_SERIES_INTRADAY',
-    #     'where': {
-    #         'symbol': 'TSLA',
-    #         'interval': '5min',
-    #         #
-    #         'datetime': dt.datetime(year=2020, month=5, day=15, hour=15, minute=50, second=0)#.date()#.date()#.strftime(DATE_FORMAT)
-    #         # 'datetime': '2020-05-15 00:00:00.000000'
-    #         # 'low': 173.8,
-    #         # 'open': 175.8,
-    #     }}
-    # print('values: ', values)
-    # a = db_connection.delete_record(values=values)
-    # # a = db_connection.get_record(values=values)
-    # print('a', a)
-    # import sqlalchemy as sa
-
     log.info('<<< Checking market status >>>')
-    # log.info(f"Last market time: {last_business_hours.view_last_market_time()}")
     last_business_hours = market_time.LastBusinessHours(function=args['function'], cfg=cfg)
     last_market_time = last_business_hours.view_last_market_time()
     last_update = data_status.get_last_update(
@@ -78,12 +42,11 @@ def main(args):
                        symbol=args['symbol'],
                        interval=args['interval'])
     query.get_data_from_database(con=db_connection, has_dt=True)
+    query.get_dividend_data_from_database(con=db_connection)
 
     if get_new_data:
         log.info('<<< Getting most recent time series data >>>')
-        # query.remove_last_entry(delete_from_db=db_connection)
         query.get_data_from_server()
-        # query.process_meta_data()
         query.process_data()
 
         log.info('<<< Saving update information to database >>>')
@@ -98,10 +61,9 @@ def main(args):
                 function=args['function'],
                 interval=args['interval'])
         log.info("<<< Saving new data to database >>>")
-        # if (last_update > last_business_hours.view_last_complete_period()):
-        #     print("Obsolete data needs to be deleted")
-        # query.delete_obsolete_data(database=db_connection,
-        #                            last_complete=last_business_hours.view_last_complete_period())
+
+        query.remove_nonunique_rows(database=db_connection)
+        query.remove_nonunique_dividend_rows(database=db_connection)
         query.save_new_data(database=db_connection)
         data_status.save_table(database=db_connection)
 

@@ -23,7 +23,6 @@ class TimeSeriesAdjusted():
     """Basic time series model for adjusted prices
     """
     adjusted_close = Column(Float, primary_key=False, nullable=False)
-    dividend_amount = Column(Float, primary_key=False, nullable=False)
 
 
 class TimeSeriesIntraday(TimeSeries, Base):
@@ -63,7 +62,6 @@ class TimeSeriesMonthly(TimeSeries, Base):
     """Model for TimeSeriesMonthly table
     """
     __tablename__ = 'TIME_SERIES_MONTHLY'
-    # datetime = Column(DateTime, primary_key=True, nullable=False)
 
 
 class TimeSeriesMonthlyAdjusted(TimeSeries, TimeSeriesAdjusted, Base):
@@ -87,5 +85,6 @@ class Dividend(Base):
     """
     __tablename__ = 'DIVIDEND'
     symbol = Column(Text, primary_key=True, nullable=False, unique=False)
-    dividend = Column(Float, primary_key=False, nullable=False, unique=False)
-    date = Column(Date, primary_key=True, nullable=False, unique=False)
+    dividend_amount = Column(Float, primary_key=False, nullable=False, unique=False)
+    datetime = Column(Date, primary_key=True, nullable=False, unique=False)
+    period = Column(Text, primary_key=True, nullable=False, unique=False)
