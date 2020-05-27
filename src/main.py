@@ -28,8 +28,10 @@ def main(args):
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
     log.info('<<< Checking market status >>>')
-    last_business_hours = market_time.LastBusinessHours(function=args['function'], cfg=cfg)
+    market_time_info = market_time.MarketTime(cfg=cfg)
+    last_business_hours = market_time.BusinessHours(market_time_info)
     last_market_time = last_business_hours.view_last_market_time()
+    print(last_market_time)
     last_update = data_status.get_last_update(
         symbol=args['symbol'],
         function=args['function'],
