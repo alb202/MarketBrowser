@@ -20,7 +20,7 @@ def get_console_handler():
 def get_file_handler():
     """Create the log file handler
     """
-    file_handler = RotatingFileHandler(LOG_FILE, backupCount=5, maxBytes=100000)
+    file_handler = RotatingFileHandler(LOG_FILE, backupCount=0, maxBytes=100000)
     file_handler.setFormatter(FORMATTER)
     return file_handler
 

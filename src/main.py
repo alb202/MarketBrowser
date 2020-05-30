@@ -39,17 +39,17 @@ def main(args):
     get_new_data = utilities.get_new_data_test(last_update, last_market_time)
 
     log.info('<<< Getting timeseries data >>>')
-    query = TimeSeries(cfg=cfg,
+    query = TimeSeries(con=db_connection,
                        function=args['function'],
                        symbol=args['symbol'],
                        interval=args['interval'])
-    query.get_data_from_database(con=db_connection, has_dt=True)
-    query.get_dividend_data_from_database(con=db_connection)
+    query.get_local_data()
 
     if get_new_data:
         log.info('<<< Getting most recent time series data >>>')
-        query.get_data_from_server()
-        query.process_data()
+        # query.get_data_from_server()
+        # query.process_data()
+        query.get_remote_data(cfg=cfg)
 
         log.info('<<< Saving update information to database >>>')
         if last_update is None:
@@ -64,9 +64,9 @@ def main(args):
                 interval=args['interval'])
         log.info("<<< Saving new data to database >>>")
 
-        query.remove_nonunique_rows(database=db_connection)
-        query.remove_nonunique_dividend_rows(database=db_connection)
-        query.save_new_data(database=db_connection)
+        # query.remove_nonunique_rows(database=db_connection)
+        # query.remove_nonunique_dividend_rows(database=db_connection)
+        # query.save_new_data(database=db_connection)
         data_status.save_table(database=db_connection)
 
     return query.view_data()

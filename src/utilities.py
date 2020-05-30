@@ -7,21 +7,8 @@ import math
 import sys
 
 import logger
-import numpy as np
 
 log = logger.get_logger(__name__)
-
-DTYPES = {"symbol": str,
-          "datetime": 'datetime64',
-          "open": float,
-          "high": float,
-          "low": float,
-          "close": float,
-          "adjusted_close": float,
-          "volume": np.int64,
-          "interval": str,
-          "dividend_amount": float,
-          "split_coefficient": float}
 
 DATA_COLUMNS1 = ["symbol", "datetime", "open", "high", "low", "close", "volume", "interval"]
 DATA_COLUMNS2 = ["symbol", "datetime", "open", "high", "low", "close", "adjusted_close",
@@ -29,14 +16,8 @@ DATA_COLUMNS2 = ["symbol", "datetime", "open", "high", "low", "close", "adjusted
 DATA_COLUMNS3 = ["symbol", "datetime", "open", "high", "low", "close", "adjusted_close",
                  "volume", "dividend_amount", "split_coefficient"]
 
-
-def set_column_dtypes(dataframe, dtypes):
-    """Set the dtypes for the columns
-    """
-    log.info(f"Setting column dtypes: {str(dtypes)}")
-    for column in dataframe.columns:
-        dataframe = dataframe.astype({column: dtypes[column]})
-    return dataframe
+DATE_FORMAT = '%Y-%m-%d'
+DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 
 def format_datetime(old_date, date_format):

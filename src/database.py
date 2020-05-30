@@ -5,7 +5,7 @@ It contains classes to control the database connection and database reading and 
 import logger
 import pandas as pd
 import sqlalchemy as sa
-import timeseries
+import utilities
 from models import Base
 from sqlalchemy.exc import OperationalError
 
@@ -39,14 +39,14 @@ class Database:
         """Read database table into pandas dataframe
         """
         log.info("Writing table to database")
-        has_dt = {"datetime": timeseries.DATETIME_FORMAT} if has_dt else None
+        has_dt = {"datetime": utilities.DATETIME_FORMAT} if has_dt else None
         return pd.read_sql_table(con=self.engine, table_name=table, parse_dates=has_dt)
 
     def query_to_pandas(self, where_dict, has_dt=False):
         """Read database query into pandas dataframe
         """
         log.info("Reading query from database")
-        has_dt = {"datetime": timeseries.DATETIME_FORMAT} if has_dt else None
+        has_dt = {"datetime": utilities.DATETIME_FORMAT} if has_dt else None
         where_statement = self.create_sql_for_selection(where_dict)
         return pd.read_sql_query(con=self.engine, sql=where_statement, parse_dates=has_dt)
 
@@ -89,18 +89,6 @@ class Database:
         """
         log.info(f"Updating table {table} in database")
         dataframe.to_sql(table, con=self.engine, if_exists=if_exists, index=False)
-
-    # def update_value(self, table, where, values):
-    #     """Update a specific value in a dataframe
-    #     """
-    #     log.info(f"Updating value {str(values)} in table {table} where {str(where)} in database")
-    #     session = self.Session()
-    #     tbl = self.meta.tables[table]
-    #     value_dict = {tbl.c[i]: j for i, j in values.items()}
-    #     sql = tbl.update().values(value_dict).where(tbl.c[where[0]] == where[1])
-    #     session.execute(sql)
-    #     session.commit()
-    #     session.close()
 
     def delete_record(self, values):
         """Update a specific value in a dataframe
