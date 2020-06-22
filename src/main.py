@@ -21,7 +21,9 @@ def main(args):
     """
     log.info('<<< Starting MarketBrowser >>>')
     log.info('<<< Loading config and connecting to database >>>')
-    cfg = Config("../resources/config.txt")
+
+    cfg = Config(args['config']) if args['config'] is not None \
+        else Config("../resources/config.txt")
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
     log.info('<<< Loading data status >>>')
@@ -69,6 +71,8 @@ def main(args):
         # query.save_new_data(database=db_connection)
         data_status.save_table(database=db_connection)
 
+    if args['no_return']:
+        return None
     return query.view_data()
 
 
@@ -89,6 +93,9 @@ def parse_args():
     parser.add_argument('--interval', metavar='INTERVAL', type=str, nargs='?', default=None,
                         required=False, choices=["5min", "15min", "30min", "60min"],
                         help='Get the time interval')
+    parser.add_argument('--config', metavar='CONFIG', type=str, nargs='?', default=None,
+                        required=False, help='Path to config file')
+    parser.add_argument('--no_return', action='store_true', help='Do not return the data')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)
