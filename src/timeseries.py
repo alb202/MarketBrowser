@@ -188,6 +188,8 @@ class TimeSeries():
             value_cols = ['open', 'high', 'low', 'close', 'volume']
             if 'ADJUSTED' in self.params['function']:
                 value_cols.append('adjusted_close')
+            if 'DAILY_ADJUSTED' in self.params['function']:
+                value_cols.append('split_coefficient')
 
             print("merge cols: ", merge_cols)
             print("value cols: ", value_cols)
@@ -235,7 +237,10 @@ class TimeSeries():
 
         def remove_obsolete_data(self):
             if (len(self.prices) > 0) & (len(self.obsolete_prices) > 0):
+                print("price columns: ", self.prices.columns)
                 print("obsolete price columns: ", self.obsolete_prices.columns)
+                print("prices: ", self.prices)
+                print("obsolete prices: ", self.obsolete_prices)
                 self.prices = self.prices.merge(
                     self.obsolete_prices,
                     how='left',
@@ -304,17 +309,18 @@ class TimeSeries():
     class RemoteData:
         """Manage time series data
         """
-        DTYPES = {"symbol": str,
-                  "datetime": 'datetime64',
-                  "open": float,
-                  "high": float,
-                  "low": float,
-                  "close": float,
-                  "adjusted_close": float,
-                  "volume": np.int64,
-                  "interval": str,
-                  "dividend_amount": float,
-                  "split_coefficient": float}
+        DTYPES = {"symbol": str
+            , "datetime": 'datetime64'
+            , "open": float
+            , "high": float
+            , "low": float
+            , "close": float
+            , "adjusted_close": float
+            , "volume": np.int64
+            , "interval": str
+            , "dividend_amount": float
+            , "split_coefficient": float
+                  }
 
         def __init__(self, cfg, local_data, params):
             log.info("Creating TimeSeries object")
@@ -418,8 +424,15 @@ class TimeSeries():
 
         @staticmethod
         def get_unique_data(old_data, new_data, sort_col):
+            # print("new_data", new_data)
+            # print("old_data", old_data)
             if new_data is None:
                 return pd.DataFrame()
+            if len(new_data) == 0:
+                # print("newdata is none")
+                return new_data
+            # print("newdata is not none", len(new_data))
+            # print(new_data.dtypes)
             return new_data \
                 .merge(
                 old_data,
@@ -431,203 +444,3 @@ class TimeSeries():
                 .drop_duplicates(ignore_index=True) \
                 .sort_values(sort_col) \
                 .reset_index(drop=True)
-
-# pd.set_option('display.max_columns', None)
-# pd.set_option('max_colwidth', None)
-#
-# new_cfg = config.Config("../resources/config.txt")
-# db_connection = Database(new_cfg.view_db_location())
-# db_connection.check_database()
-# new_timeseries = TimeSeries(con=db_connection,
-#                             symbol='AGGY',
-#                             # interval='30min',
-#                             interval=None,
-#                             function='TIME_SERIES_MONTHLY_ADJUSTED')
-#                             # function='TIME_SERIES_INTRADAY')
-# print(new_timeseries.__dict__)
-# new_timeseries.get_local_data()
-# print("local prices: ", new_timeseries.local_data.prices)
-# print("local dividend: ", new_timeseries.local_data.dividends)
-# new_timeseries.get_remote_data(cfg=new_cfg)
-# print("new prices: ", new_timeseries.remote_data.prices)
-# print("new dividend: ", new_timeseries.remote_data.dividends)
-# print("obsolete price data: ", new_timeseries.local_data.obsolete_prices)
-# print("final_data: ", new_timeseries.view_data())
-
-#
-#
-#
-#
-#             results_df = results_df.drop_duplicates(ignore_index=True).merge(
-#                 self.db_data,
-#                 how="outer",
-#                 on=list(results_df.columns),
-#                 indicator=True).query('_merge == "left_only"').drop('_merge', axis=1)
-#
-#             self.new_data = results_df \
-#                 .sort_values('datetime') \
-#                 .reset_index(drop=True)
-#
-#
-#
-#
-#             self.raw_data = None
-#             self.new_dividend_data = None
-#             self.db_dividend_data = None
-#             self.meta_data = None
-#             self.has_data = False
-#             self.dividend_period = self.get_dividend_period()
-#
-#
-# class SaveData():
-#     def __init__(self, db, remote):
-#
-#
-#
-#
-#
-#     def process_meta_data(self):
-#         """Convert the raw JSON metadata into pandas dataframe
-#         """
-#         log.info('Processing metadata from server')
-#         if not self.has_data:
-#             return
-#         meta_data = self.raw_data["Meta Data"]
-#         self.meta_data = pd.DataFrame.from_dict(
-#             {'symbol': [self.symbol],
-#              'function': [self.function],
-#              'interval': [self.interval],
-#              'datetime': [utilities.convert_between_timezones(
-#                  check_date_format(meta_data['3. Last Refreshed']),
-#                  self.cfg.market_timezone(),
-#                  self.cfg.common_timezone())]},
-#             orient='columns')
-#
-#
-#
-#     def view_data(self):
-#         """Return the database data and fresh API data
-#         """
-#         prices = pd.concat([self.db_data, self.new_data]) \
-#             .drop_duplicates(ignore_index=True) \
-#             .sort_values('datetime') \
-#             .reset_index(drop=True)
-#         dividends = pd.concat([self.db_dividend_data, self.new_dividend_data]) \
-#             .drop_duplicates(ignore_index=True) \
-#             .sort_values('datetime') \
-#             .reset_index(drop=True)
-#         return {'prices': prices, 'dividends': dividends}
-#
-#     def save_new_data(self, database):
-#         """Save the new data to the database table
-#         """
-#         log.info("Saving new data to database")
-#         database.update_table(dataframe=self.new_data,
-#                               table=self.function,
-#                               if_exists="append")
-#         if self.new_dividend_data is not None:
-#             database.update_table(dataframe=self.new_dividend_data,
-#                                   table='DIVIDEND',
-#                                   if_exists="append")
-#
-#     def remove_nonunique_rows(self, database):
-#         """Remove any non-unique rows from the database
-#         """
-#         merge_cols = ['symbol', 'datetime']
-#         if self.interval is not None:
-#             merge_cols.append('interval')
-#         value_cols = ['open', 'high', 'low', 'close', 'volume']
-#         df = self.new_data.merge(
-#             self.db_data,
-#             how="outer",
-#             on=merge_cols,
-#             indicator=True,
-#             suffixes=['', '_db']
-#         ).query('_merge == "both"')
-#         if len(df) == 0:
-#             log.info("No obsolete data found in database")
-#             return
-#         query = ' | '.join(['(' + i + ' != ' + i + '_db' + ')' for i in value_cols])
-#         df = df.query(query)
-#         if len(df) == 0:
-#             log.info("No rows with conflicting data")
-#             return
-#         self.delete_dataframe_from_database(database=database, dataframe=df, table=self.function)
-#         self.db_data = self.db_data.merge(
-#             df[merge_cols],
-#             how="left",
-#             on=merge_cols,
-#             indicator=True,
-#             suffixes=['', '_db']
-#         ).query('_merge == "left_only"').drop('_merge', axis=1)
-#
-#     def remove_nonunique_dividend_rows(self, database):
-#         """Remove any non-unique dividends from the database
-#         """
-#         if self.new_dividend_data is None:
-#             return
-#         merge_cols = ['symbol', 'datetime', 'period']
-#         value_cols = ['dividend_amount']
-#         df = self.new_dividend_data.merge(
-#             self.db_dividend_data,
-#             how="outer",
-#             on=merge_cols,
-#             indicator=True,
-#             suffixes=['', '_db']
-#         ).query('_merge == "both"')
-#         if len(df) == 0:
-#             log.info("No obsolete dividend data found in database")
-#             return
-#         query = ' | '.join(['(' + i + ' != ' + i + '_db' + ')' for i in value_cols])
-#         df = df.query(query)
-#         if len(df) == 0:
-#             log.info("No rows with conflicting data")
-#             return
-#         self.delete_dataframe_from_database(database=database, dataframe=df, table='DIVIDEND')
-#         self.db_dividend_data = self.db_dividend_data.merge(
-#             df[merge_cols],
-#             how="left",
-#             on=merge_cols,
-#             indicator=True,
-#             suffixes=['', '_db']
-#         ).query('_merge == "left_only"').drop('_merge', axis=1)
-#
-#     def delete_dataframe_from_database(self, database, dataframe, table):
-#         """Delete a dataframe from the database using the current function table
-#         """
-#         for index, row in dataframe.iterrows():
-#             where = dict()
-#             where['symbol'] = row['symbol']
-#             where['datetime'] = row['datetime'].to_pydatetime()
-#             if 'interval' in dataframe.columns:
-#                 where['interval'] = row['interval']
-#             if 'period' in dataframe.columns:
-#                 where['period'] = row['period']
-#             values = {'table': table,
-#                       'where': where}
-#             log.info(f"Obsolete row: {str(values)}")
-#             database.delete_record(values=values)
-#
-#     def get_dividend_period(self):
-#         if 'DAILY' in self.function:
-#             return 'day'
-#         if 'WEEKLY' in self.function:
-#             return 'week'
-#         if 'MONTHLY' in self.function:
-#             return 'month'
-#         return None
-#
-#
-#     def view_data(self):
-#         """Return the database data and fresh API data
-#         """
-#         prices = pd.concat([self.db_data, self.new_data]) \
-#             .drop_duplicates(ignore_index=True) \
-#             .sort_values('datetime') \
-#             .reset_index(drop=True)
-#         dividends = pd.concat([self.db_dividend_data, self.new_dividend_data]) \
-#             .drop_duplicates(ignore_index=True) \
-#             .sort_values('datetime') \
-#             .reset_index(drop=True)
-#         return {'prices': self.price_data, 'dividends': self.dividend_data}
-# p
