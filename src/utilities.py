@@ -59,16 +59,17 @@ def validate_args(args):
     """Validate command line arguments
     """
     log.info("Validate the command line arguments")
-    if ('INTRADAY' not in args['function']) & \
-            (args['interval'] is not None) & \
-            (args['interval'] != ''):
-        log.info('Only intraday function requires intervals! Exiting ... ')
+    if (('TIME_SERIES_INTRADAY' not in args['function']) & \
+        (args['interval'] is not None)) & (not args['get_all']):
+        log.info('Only the intraday function requires intervals! Exiting ... ')
         sys.exit()
-    elif (args['symbol'] is None) | (args['symbol'] == ''):
-        log.info('The symbol must be a string of at least 1 character! Exiting ... ')
+    if (not args['symbol']):
+        log.info('At least one symbol must be provided! Exiting ... ')
         sys.exit()
-    else:
-        return args
+    if (not args['function']) & (not args['get_all']):
+        log.info('At least one function or --get_all must be requested! Exiting ... ')
+        sys.exit()
+    return args
 
 
 def time_series_column_order(columns):

@@ -33,47 +33,61 @@ def main(args):
     market_time_info = market_time.MarketTime(cfg=cfg)
     last_business_hours = market_time.BusinessHours(market_time_info)
     last_market_time = last_business_hours.view_last_market_time()
-    print(last_market_time)
-    last_update = data_status.get_last_update(
-        symbol=args['symbol'],
-        function=args['function'],
-        interval=args['interval'])
-    get_new_data = utilities.get_new_data_test(last_update, last_market_time)
 
-    log.info('<<< Getting timeseries data >>>')
-    query = TimeSeries(con=db_connection,
-                       function=args['function'],
-                       symbol=args['symbol'],
-                       interval=args['interval'])
-    query.get_local_data()
+    if args['get_all']:
+        function_arg_list = ["TIME_SERIES_INTRADAY",
+                             "TIME_SERIES_DAILY_ADJUSTED",
+                             "TIME_SERIES_WEEKLY_ADJUSTED",
+                             "TIME_SERIES_MONTHLY_ADJUSTED"]
+        interval_arg_list = ["5min", "15min", "30min", "60min"]
+    else:
+        function_arg_list = args['function']
+        interval_arg_list = args['interval']
 
-    if get_new_data:
-        log.info('<<< Getting most recent time series data >>>')
-        # query.get_data_from_server()
-        # query.process_data()
-        query.get_remote_data(cfg=cfg)
+    for symbol_arg in args['symbol']:
+        for function_arg in function_arg_list:
+            if function_arg == 'TIME_SERIES_INTRADAY':
+                interval_arg_list_ = interval_arg_list
+            else:
+                interval_arg_list_ = [None]
+            for interval_arg in interval_arg_list_:
+                last_update = data_status.get_last_update(
+                    symbol=symbol_arg,
+                    function=function_arg,
+                    interval=interval_arg)
+                get_new_data = utilities.get_new_data_test(last_update,
+                                                           last_market_time)
+                log.info('<<< Getting timeseries data >>>')
+                query = TimeSeries(con=db_connection,
+                                   function=function_arg,
+                                   symbol=symbol_arg,
+                                   interval=interval_arg)
+                query.get_local_data()
+                if get_new_data:
+                    log.info('<<< Getting most recent time series data >>>')
+                    query.get_remote_data(cfg=cfg)
 
-        log.info('<<< Saving update information to database >>>')
-        if last_update is None:
-            data_status.add_status_entry(
-                symbol=args['symbol'],
-                function=args['function'],
-                interval=args['interval'])
-        else:
-            data_status.update_status_entry(
-                symbol=args['symbol'],
-                function=args['function'],
-                interval=args['interval'])
-        log.info("<<< Saving new data to database >>>")
+                    log.info('<<< Saving update information to database >>>')
+                    if last_update is None:
+                        data_status.add_status_entry(
+                            symbol=symbol_arg,
+                            function=function_arg,
+                            interval=interval_arg)
+                    else:
+                        data_status.update_status_entry(
+                            symbol=symbol_arg,
+                            function=function_arg,
+                            interval=interval_arg)
+    log.info("<<< Saving data statuses to database >>>")
+    data_status.save_table(database=db_connection)
 
-        # query.remove_nonunique_rows(database=db_connection)
-        # query.remove_nonunique_dividend_rows(database=db_connection)
-        # query.save_new_data(database=db_connection)
-        data_status.save_table(database=db_connection)
-
-    if args['no_return']:
-        return None
-    return query.view_data()
+    if args['no_return'] | \
+            (not args['symbol']) | \
+            (not args['function']) | \
+            (not args['interval']):
+        return
+    if query is not None:
+        return query.view_data()
 
 
 def parse_args():
@@ -81,21 +95,31 @@ def parse_args():
     """
     log.info("Parsing input arguments")
     parser = argparse.ArgumentParser(description='Get stock or etf data ...')
-    parser.add_argument('--function', metavar='FUNCTION', type=str, nargs='?',
-                        default="TIME_SERIES_DAILY",
-                        choices=["TIME_SERIES_INTRADAY", "TIME_SERIES_DAILY",
-                                 "TIME_SERIES_DAILY_ADJUSTED", "TIME_SERIES_WEEKLY",
-                                 "TIME_SERIES_WEEKLY_ADJUSTED", "TIME_SERIES_MONTHLY",
+    parser.add_argument('--function', metavar='FUNCTION', type=str, nargs='*',
+                        default=None,
+                        choices=["TIME_SERIES_INTRADAY",
+                                 "TIME_SERIES_DAILY",
+                                 "TIME_SERIES_DAILY_ADJUSTED",
+                                 "TIME_SERIES_WEEKLY",
+                                 "TIME_SERIES_WEEKLY_ADJUSTED",
+                                 "TIME_SERIES_MONTHLY",
                                  "TIME_SERIES_MONTHLY_ADJUSTED"],
                         required=False, help='Get the time series type')
-    parser.add_argument('--symbol', metavar='SYMBOL', type=str, nargs='?', default="IBM",
+    parser.add_argument('--symbol', metavar='SYMBOL',
+                        type=str, nargs='+', default="IBM",
                         required=False, help='Get the market symbol')
-    parser.add_argument('--interval', metavar='INTERVAL', type=str, nargs='?', default=None,
-                        required=False, choices=["5min", "15min", "30min", "60min"],
+    parser.add_argument('--interval', metavar='INTERVAL',
+                        type=str, nargs='*', default=None,
+                        required=False,
+                        choices=["5min", "15min", "30min", "60min"],
                         help='Get the time interval')
-    parser.add_argument('--config', metavar='CONFIG', type=str, nargs='?', default=None,
-                        required=False, help='Path to config file')
-    parser.add_argument('--no_return', action='store_true', help='Do not return the data')
+    parser.add_argument('--config', metavar='CONFIG', type=str,
+                        nargs='?', default=None, required=False,
+                        help='Path to config file')
+    parser.add_argument('--get_all', action='store_true',
+                        help='Get all the functions for symbol(s)')
+    parser.add_argument('--no_return', action='store_true',
+                        help='Do not return the data')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)
