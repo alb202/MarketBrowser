@@ -5,16 +5,13 @@ This module controls the request of data from the server and formatting of times
 
 import datetime as dt
 import sys
+import time
 
 import logger
 import numpy as np
 import pandas as pd
 import requests
 import utilities
-
-# import config
-# from database import Database
-
 
 log = logger.get_logger(__name__)
 
@@ -170,7 +167,6 @@ class TimeSeries():
             return dividend_data
 
         def get_obsolete_data(self, new_prices, new_dividends):
-
             self.obsolete_prices = self.get_obsolete_prices(new_data=new_prices) \
                 if len(new_prices) > 0 else pd.DataFrame()
             self.obsolete_dividends = self.get_obsolete_dividends(new_data=new_dividends) \
@@ -354,15 +350,28 @@ class TimeSeries():
                               "apikey": cfg.view_apikey(),
                               "datatype": cfg.view_format()}
             try:
-                raw_data = requests.get(
-                    url=cfg.view_url(),
-                    params=api_parameters).json()
-                if isinstance(raw_data, dict):
-                    if "Error Message" in raw_data.keys():
-                        log.warn(f"API call unsuccessful: {raw_data['Error Message']}")
-                        sys.exit()
-                    else:
-                        log.info("Object loaded with raw data")
+                err_key = 'Error Message'
+                note_key = 'Note'
+                raw_data = {note_key: '', err_key: ''}
+                error = False
+                tries = 0
+                while (note_key in raw_data.keys()) | (err_key in raw_data.keys()):
+                    if tries > 0:
+                        time.sleep(15)
+                    raw_data = requests.get(
+                        url=cfg.view_url(),
+                        params=api_parameters).json()
+                    if isinstance(raw_data, dict):
+                        if (note_key in raw_data.keys()):
+                            msg = raw_data[note_key]
+                            error = True
+                        if (err_key in raw_data.keys()):
+                            msg = raw_data[err_key]
+                            error = True
+                    tries += 1
+                    if error:
+                        log.warn(f"API call unsuccessful: {msg}. Trying again ...")
+                log.info("Object loaded with raw data")
             except requests.RequestException as error:
                 log.info("Data grab failed. Exiting!")
                 log.warn(error)
@@ -387,6 +396,7 @@ class TimeSeries():
             """Convert the raw JSON time series data into pandas dataframe
             """
             log.info("Processing raw data from API")
+            print(raw_data)
             if raw_data is None:
                 log.warning("No raw data to process")
                 return {'prices': pd.DataFrame(),
