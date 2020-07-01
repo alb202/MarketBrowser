@@ -29,6 +29,9 @@ def main(args):
     log.info('<<< Loading data status >>>')
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
+    if data_status:
+        print(data_status.data)
+        return data_status.data
     log.info('<<< Checking market status >>>')
     market_time_info = market_time.MarketTime(cfg=cfg)
     last_business_hours = market_time.BusinessHours(market_time_info)
@@ -120,6 +123,8 @@ def parse_args():
                         help='Get all the functions for symbol(s)')
     parser.add_argument('--no_return', action='store_true',
                         help='Do not return the data')
+    parser.add_argument('--data_status', action='store_true',
+                        help='View the data status table')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)

@@ -59,14 +59,15 @@ def validate_args(args):
     """Validate command line arguments
     """
     log.info("Validate the command line arguments")
-    if (('TIME_SERIES_INTRADAY' not in args['function']) & \
-        (args['interval'] is not None)) & (not args['get_all']):
-        log.info('Only the intraday function requires intervals! Exiting ... ')
-        sys.exit()
+    if args['function']:
+        if (('TIME_SERIES_INTRADAY' not in args['function']) & \
+            (args['interval'] is not None)) & (not args['get_all']):
+            log.info('Only the intraday function requires intervals! Exiting ... ')
+            sys.exit()
     if (not args['symbol']):
         log.info('At least one symbol must be provided! Exiting ... ')
         sys.exit()
-    if (not args['function']) & (not args['get_all']):
+    if (not args['function']) & (not args['get_all']) & (not args['data_status']):
         log.info('At least one function or --get_all must be requested! Exiting ... ')
         sys.exit()
     return args
