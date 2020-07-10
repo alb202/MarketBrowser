@@ -29,8 +29,8 @@ def main(args):
     log.info('<<< Loading data status >>>')
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
-    if data_status:
-        print(data_status.data)
+    if args['data_status']:
+        # print('data status: ', data_status.data)
         return data_status.data
     log.info('<<< Checking market status >>>')
     market_time_info = market_time.MarketTime(cfg=cfg)
@@ -88,7 +88,7 @@ def main(args):
             (not args['symbol']) | \
             (not args['function']) | \
             (not args['interval']):
-        return
+        return True
     if query is not None:
         return query.view_data()
 
