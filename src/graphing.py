@@ -1,3 +1,4 @@
+import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import main
 import pandas as pd
@@ -12,9 +13,12 @@ def register_graphing_callbacks(app):
     def set_dropdown_enabled_state(function):
         """Return true if the function is intraday, else false
         """
+        if not function:
+            return True
         return 'INTRADAY' not in function
 
-    @app.callback(Output('time_series_plot', 'figure'),
+    @app.callback([Output('time_series_plot', 'figure'),
+                   Output('plot_status_indicator', 'hidden')],
                   [Input('submit_val', 'n_clicks')],
                   [State('input_symbol', 'value'),
                    State('input_function', 'value'),
@@ -31,14 +35,15 @@ def register_graphing_callbacks(app):
             nrows=2, ncols=1,
             row_heights=[.85, .15],
             vertical_spacing=.02)
-        return create_main_graph(data=stock_data, symbol=input_symbol,
-                                 function=input_function, params=params)
+        return [create_main_graph(data=stock_data, symbol=input_symbol,
+                                  function=input_function, params=params),
+                n_clicks == 0]
 
 
 def generate_symbol_input():
     """Generate the input for creating symbols
     """
-    return dcc.Input(placeholder='Enter a symbol...',
+    return dbc.Input(placeholder='Enter a symbol...',
                      type='text',
                      value=None,
                      id='input_symbol')
@@ -71,9 +76,22 @@ def generate_interval_dropdown():
 def generate_show_dividend_checkbox():
     """Generate the checkbox for showing dividends
     """
-    return dcc.Checklist(id='show_dividends',
-                         options=[{'label': 'Show dividends', 'value': 'yes'}],
-                         value=[])
+    # return dbc.Checklist(
+    #     options=[
+    #         {"label": "Option 1", "value": 1},
+    #         {"label": "Option 2", "value": 2},
+    #     ],
+    #     value=[],
+    #     id="checklist-inline-input",
+    #     inline=True,
+    # ),
+
+    return dbc.Checklist(id='show_dividends',
+                         options=[
+                             {'label': 'Show dividends', 'value': 'yes'}],
+                         value=[],
+                         inline=False,
+                         switch=True)
 
 
 def generate_plot():
@@ -105,7 +123,8 @@ def get_data(n_clicks, symbol, function, interval):
          'interval': [interval],
          'config': None,
          'get_all': False,
-         'no_return': False})
+         'no_return': False,
+         'data_status': False})
 
 
 def make_rangebreaks(function):
