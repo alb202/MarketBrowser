@@ -67,7 +67,10 @@ def validate_args(args):
     if (not args['symbol']):
         log.info('At least one symbol must be provided! Exiting ... ')
         sys.exit()
-    if (not args['function']) & (not args['get_all']) & (not args['data_status']):
+    if (not args['function']) \
+            & (not args['get_all']) \
+            & (not args['data_status']) \
+            & (not args['get_symbols']):
         log.info('At least one function or --get_all must be requested! Exiting ... ')
         sys.exit()
     return args

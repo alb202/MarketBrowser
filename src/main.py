@@ -1,5 +1,4 @@
 """This is the main module.
-
 It is for the core application functionality
 """
 
@@ -11,6 +10,7 @@ import utilities
 from config import Config
 from data_status import DataStatus
 from database import Database
+from market_symbols import MarketSymbols
 from timeseries import TimeSeries
 
 log = logger.get_logger(__name__)
@@ -21,16 +21,16 @@ def main(args):
     """
     log.info('<<< Starting MarketBrowser >>>')
     log.info('<<< Loading config and connecting to database >>>')
-
     cfg = Config(args['config']) if args['config'] is not None \
         else Config("../resources/config.txt")
+    if args['get_symbols']:
+        return MarketSymbols().show_all()
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
     log.info('<<< Loading data status >>>')
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
     if args['data_status']:
-        # print('data status: ', data_status.data)
         return data_status.data
     log.info('<<< Checking market status >>>')
     market_time_info = market_time.MarketTime(cfg=cfg)
@@ -125,6 +125,8 @@ def parse_args():
                         help='Do not return the data')
     parser.add_argument('--data_status', action='store_true',
                         help='View the data status table')
+    parser.add_argument('--get_symbols', action='store_true',
+                        help='Get all market symbols')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)
