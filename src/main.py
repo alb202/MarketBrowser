@@ -24,7 +24,8 @@ def main(args):
     cfg = Config(args['config']) if args['config'] is not None \
         else Config("../resources/config.txt")
     if args['get_symbols']:
-        return MarketSymbols().show_all()
+        # market_symbols =
+        return MarketSymbols().show_all()  # market_symbols
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
     log.info('<<< Loading data status >>>')
