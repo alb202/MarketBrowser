@@ -81,7 +81,7 @@ class DataStatus(Base):
 
 
 class Dividend(Base):
-    """Model for dividend class (not yet implemented)
+    """Model for dividend class
     """
     __tablename__ = 'DIVIDEND'
     symbol = Column(Text, primary_key=True, nullable=False, unique=False)
