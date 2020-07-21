@@ -76,16 +76,6 @@ def generate_interval_dropdown():
 def generate_show_dividend_checkbox():
     """Generate the checkbox for showing dividends
     """
-    # return dbc.Checklist(
-    #     options=[
-    #         {"label": "Option 1", "value": 1},
-    #         {"label": "Option 2", "value": 2},
-    #     ],
-    #     value=[],
-    #     id="checklist-inline-input",
-    #     inline=True,
-    # ),
-
     return dbc.Checklist(id='show_dividends',
                          options=[
                              {'label': 'Show dividends', 'value': 'yes'}],
@@ -124,7 +114,8 @@ def get_data(n_clicks, symbol, function, interval):
          'config': None,
          'get_all': False,
          'no_return': False,
-         'data_status': False})
+         'data_status': False,
+         'get_symbols': False})
 
 
 def make_rangebreaks(function):
