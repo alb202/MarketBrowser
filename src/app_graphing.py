@@ -1,10 +1,19 @@
+import datetime as datetime
+
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import main
 import pandas as pd
 import plotly.graph_objects as go
 from dash.dependencies import Output, Input, State
+from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
 from plotly.subplots import make_subplots
+
+USFEDHOLIDAYS = USFederalHolidayCalendar()
+USFEDHOLIDAYS.merge(GoodFriday, inplace=True)
+MARKET_HOLIDAYS = [i.astype(datetime.datetime).strftime('%Y-%m-%d') for i in
+                   list(pd.offsets.CustomBusinessDay(calendar=USFEDHOLIDAYS)
+                        .__dict__['holidays'])][200:700]
 
 
 def register_graphing_callbacks(app):
@@ -124,14 +133,14 @@ def make_rangebreaks(function):
     if 'INTRADAY' in function:
         return [
             dict(bounds=["sat", "mon"]),  # hide weekends
-            # dict(values=["2015-12-25", "2016-01-01"]),
+            dict(values=MARKET_HOLIDAYS),
             dict(pattern='hour', bounds=[16, 9.5])  # hide Christmas and New Year's
         ]
 
     if 'DAILY' in function:
         return [
-            dict(bounds=["sat", "mon"])  # ,  # hide weekends
-            # dict(values=["2015-12-25", "2016-01-01"])
+            dict(bounds=["sat", "mon"]),  # ,  # hide weekends
+            dict(values=MARKET_HOLIDAYS),
         ]
     return None
 
@@ -162,7 +171,6 @@ def get_layout_params(symbol):
 def create_main_graph(data, symbol, function, params):
     """Plot the data on the main graph
     """
-    layout_params = get_layout_params(symbol=symbol)
     fig = make_subplots(
         rows=params['nrows'],
         cols=params['ncols'],
@@ -170,11 +178,12 @@ def create_main_graph(data, symbol, function, params):
         shared_xaxes=True,
         vertical_spacing=params['vertical_spacing'])
     fig.update_xaxes(rangebreaks=make_rangebreaks(function))
-    fig.update_layout(layout_params)
+    fig.update_layout(get_layout_params(symbol=symbol))
     fig.append_trace(row=1, col=1,
                      trace=go.Candlestick(name='candlestick',
                                           showlegend=False,
-                                          x=data['prices']['datetime'],
+                                          x=[] if len(data['prices']['datetime']) == 0 else data['prices'][
+                                              'datetime'].dt.strftime('%d/%m/%y %-H:%M'),
                                           open=data['prices']['open'],
                                           high=data['prices']['high'],
                                           low=data['prices']['low'],
