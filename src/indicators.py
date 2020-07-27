@@ -3,7 +3,7 @@ from abc import ABC
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from app_graphing import make_rangebreaks
+from app_utilities import *
 from plotly.subplots import make_subplots
 
 
@@ -39,27 +39,34 @@ class MACD(MovingAverages):
         cross = np.sign(self.macd - self.macd_signal)
         self.crossovers = np.sign(cross.diff().replace({np.NaN: 0}))
 
-    def plot_macd(self):
-        fig = make_subplots(specs=[[{"secondary_y": False}]])
+    def plot_macd(self, trace_only=False):
         bar_color = self.macd_histogram.copy(deep=True)
         bar_color.loc[bar_color < 0] = -1
         bar_color.loc[bar_color > 0] = 1
         bar_color.replace({-1: '#FF0000', 0: '#C0C0C0', 1: '#009900'}, inplace=True)
-        fig.add_trace(row=1, col=1, secondary_y=False,
-                      trace=go.Bar(name='MACD Histogram',
-                                   x=self.xaxis,
-                                   marker_color=list(bar_color),
-                                   y=self.macd_histogram*2))
-        fig.add_trace(row=1, col=1, secondary_y=False,
-                      trace=go.Scatter(name='MACD', mode='lines',
-                                       x=self.xaxis,
-                                       marker_color='#000000',
-                                       y=self.macd))
-        fig.add_trace(row=1, col=1, secondary_y=False,
-                      trace=go.Scatter(name='MACD Signal', mode='lines',
-                                       x=self.xaxis,
-                                       marker_color='#FF0000',
-                                       y=self.macd_signal))
+        histogram_trace = dict(
+            trace=go.Bar(name='MACD Histogram',
+                         x=self.xaxis,
+                         marker_color=list(bar_color),
+                         y=self.macd_histogram * 2))
+        macd_trace = dict(
+            trace=go.Scatter(name='MACD', mode='lines',
+                             x=self.xaxis,
+                             marker_color='#000000',
+                             y=self.macd))
+        signal_trace = dict(
+            trace=go.Scatter(name='MACD Signal', mode='lines',
+                             x=self.xaxis,
+                             marker_color='#FF0000',
+                             y=self.macd_signal))
+        if trace_only:
+            return dict(histogram=histogram_trace,
+                        macd=macd_trace,
+                        signal=signal_trace)
+        fig = make_subplots(specs=[[{"secondary_y": False}]])
+        fig.add_trace(row=1, col=1, secondary_y=False, **histogram_trace)
+        fig.add_trace(row=1, col=1, secondary_y=False, **macd_trace)
+        fig.add_trace(row=1, col=1, secondary_y=False, **signal_trace)
         fig.update_layout(dict(bargap=.0, width=1200, height=500,
                                title=f'MACD ({self.periods["short_period"]},'
                                      f'{self.periods["long_period"]},'
@@ -92,17 +99,27 @@ class RSI(MovingAverages):
                                                    period=self.period)
         self.rsi_line = (100 - (100 / (1 + (abs(self.avg_gain / self.avg_loss)))))
 
-    def plot_rsi(self):
+    def plot_rsi(self, trace_only=False):
+
+        rsi_trace = dict(
+            trace=go.Scatter(
+                name='RSI',
+                mode='lines',
+                x=self.xaxis,
+                marker_color='black',
+                y=self.rsi_line))
+        bottom_line = dict(y0=30, y1=30, x0=self.xaxis[0], x1=self.xaxis[len(self.xaxis) - 1],
+                           line=dict(color="green", width=2, dash="dash"), type="line")
+        top_line = dict(y0=70, y1=70, x0=self.xaxis[0], x1=self.xaxis[len(self.xaxis) - 1],
+                        line=dict(color="red", width=2, dash="dash"), type="line")
+        if trace_only:
+            return dict(rsi=rsi_trace,
+                        top_line=top_line,
+                        bottom_line=bottom_line)
         fig = make_subplots(specs=[[{"secondary_y": False}]])
-        fig.add_trace(row=1, col=1, secondary_y=False,
-                      trace=go.Scatter(name='RSI', mode='lines',
-                                       x=self.xaxis,
-                                       marker_color='black',
-                                       y=self.rsi_line))
-        fig.add_shape(type="line", x0=0, y0=30, x1=len(self.xaxis), y1=30,
-                      line=dict(color="green", width=2, dash="dash"))
-        fig.add_shape(type="line", x0=0, y0=70, x1=len(self.xaxis), y1=70,
-                      line=dict(color="red", width=2, dash="dash"))
+        fig.add_trace(row=1, col=1, secondary_y=False, **rsi_trace)
+        fig.add_shape(row=1, col=1, **top_line)
+        fig.add_shape(row=1, col=1, **bottom_line)
         fig.update_layout(dict(bargap=.0, width=1200, height=500,
                                title=f'RSI ({self.period})',
                                xaxis=dict(type="date", rangeslider=dict(visible=False)),
@@ -140,21 +157,43 @@ class HeikinAshi(MovingAverages):
                         buy_indicator.replace({True: 1, False: 0}))
 
     def get_values(self):
-        return dict(open=self.ha_open, high=self.ha_high, low=self.ha_low, close=self.ha_close)
+        return dict(datetime=self.xaxis, open=self.ha_open,
+                    high=self.ha_high, low=self.ha_low, close=self.ha_close)
 
-    def plot_ha(self):
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
+    def plot_ha(self, trace_only=False, show_indicators=True):
         bar_color = np.sign(self.ha_open - self.ha_close)
         bar_color.replace({-1: 'red', 0: 'gray', 1: 'green'}, inplace=True)
-        fig.add_trace(row=1, col=1, secondary_y=False,
-                      trace=go.Candlestick(
-                          name='candlestick',
-                          showlegend=False,
-                          x=self.xaxis,
-                          open=self.ha_open,
-                          high=self.ha_high,
-                          low=self.ha_low,
-                          close=self.ha_close))
+        ha_trace = dict(
+            trace=go.Candlestick(
+                name='candlestick',
+                showlegend=False,
+                x=self.xaxis,
+                open=self.ha_open,
+                high=self.ha_high,
+                low=self.ha_low,
+                close=self.ha_close))
+        if show_indicators | ~trace_only:
+            ha_indicator = self.ha_indicator()
+            ha_indicator_colors = np.where(ha_indicator == 0, 'white', np.where(ha_indicator == 1, 'green', 'red'))
+            ha_indicator_trace = dict(
+                trace=go.Scatter(
+                    name='HA Indicator', mode='markers',
+                    showlegend=False,
+                    x=self.xaxis,
+                    marker_color=ha_indicator_colors,
+                    y=np.where(
+                        ha_indicator == 0,
+                        None,
+                        np.where(
+                            ha_indicator == 1,
+                            self.ha_high * 1.02,
+                            self.ha_low * .98))))
+        if trace_only:
+            return dict(ha=ha_trace, indicator=ha_indicator_trace)
+        fig = make_subplots(specs=[[{"secondary_y": False}]])
+        fig.add_trace(row=1, col=1, secondary_y=False, **ha_trace)
+        if show_indicators:
+            fig.add_trace(row=1, col=1, **ha_indicator_trace)
         fig.update_layout(dict(width=1200, height=600,
                                title=f'Heikin Ashi',
                                xaxis1=dict(type="date", rangeslider=dict(visible=False)),
@@ -165,15 +204,18 @@ class HeikinAshi(MovingAverages):
 
 
 class MovingAverageCrossover(MovingAverages):
-    def __init__(self, data, ma1_type='sma', ma2_type='sma', ma1_period=13, ma2_period=26):
+    def __init__(self, data, function, ma1_type='sma', ma2_type='sma', ma1_period=13, ma2_period=26):
         if len(data.columns) != 2:
             print("Timeseries must have exactly 1 data column and 1 date column! Exiting.")
             exit()
         if 'datetime' not in data.columns:
             print("Timeseries must have datetime column! Exiting.")
             exit()
-        # self.function = function
-        self.xaxis = data['datetime']#.dt.strftime('%d/%m/%y %-H:%M')
+        self.function = function
+        self.params = dict(
+            ma1_type=ma1_type, ma1_period=ma1_period,
+            ma2_type=ma2_type, ma2_period=ma2_period)
+        self.xaxis = data['datetime']
         data_col = [i for i in data.columns if i != 'datetime'][0]
         self.data = data[data_col]
         self.ma1 = self.simple_moving_average(ts=self.data, period=ma1_period) \
@@ -190,7 +232,7 @@ class MovingAverageCrossover(MovingAverages):
                                   cross_down.replace({True: -1, False: 0}),
                                   cross_up.replace({True: 1, False: 0}))
 
-    def get_indicator(self):
+    def get_MAC_indicator(self):
         return pd.DataFrame(
             data={
                 'datetime': pd.Series(self.xaxis),
@@ -198,14 +240,62 @@ class MovingAverageCrossover(MovingAverages):
                 'ma1': pd.Series(self.ma1),
                 'ma2': pd.Series(self.ma2)})
 
+    def plot_MAC(self, trace_only=False):
+        indicator_color = self.indicator
+        indicator_color = np.where(indicator_color == 0, 'white',
+                                   np.where(indicator_color == 1, 'yellow', 'purple'))
+        MAC_trace = dict(
+            trace=go.Scatter(
+                name='Moving Average Crossover', mode='markers',
+                showlegend=False,
+                x=self.xaxis,
+                marker_color=indicator_color,
+                y=np.where(
+                    self.indicator == 0,
+                    None,
+                    np.where(
+                        self.indicator == 1,
+                        self.ma1 * 1.05,
+                        self.ma1 * .95))))
+
+        ma1_trace = dict(
+            trace=go.Scatter(
+                name='Moving Average 1', mode='lines',
+                showlegend=False,
+                x=self.xaxis,
+                marker_color='orange',
+                y=self.ma1))
+        ma2_trace = dict(
+            trace=go.Scatter(
+                name='Moving Average 2', mode='lines',
+                showlegend=False,
+                x=self.xaxis,
+                marker_color='blue',
+                y=self.ma2))
+        if trace_only:
+            return dict(crossover=MAC_trace, ma1=ma1_trace, ma2=ma2_trace)
+        fig = make_subplots(specs=[[{"secondary_y": False}]])
+        fig.add_trace(row=1, col=1, secondary_y=False, **MAC_trace)
+        fig.add_trace(row=1, col=1, secondary_y=False, **ma1_trace)
+        fig.add_trace(row=1, col=1, secondary_y=False, **ma2_trace)
+        fig.update_layout(dict(width=1200, height=500,
+                               title=f'Moving Average Crossover ({self.params["ma1_type"]}:{self.params["ma1_period"]}, '
+                                     f'{self.params["ma2_type"]}:{self.params["ma2_period"]})',
+                               xaxis1=dict(type="date", rangeslider=dict(visible=False)),
+                               yaxis1=dict(title=dict(text='Moving Averages'))))
+        fig.update_xaxes(rangebreaks=make_rangebreaks(self.function))
+        fig.show()
+        return fig
 #
+#
+# #
 # from config import Config
 # # from data_status import DataStatus
 # from database import Database
 # # from market_symbols import MarketSymbols
 # from timeseries import TimeSeries
-#
 # #
+# # #
 # cfg = Config("../resources/config.txt")
 # db_connection = Database(cfg.view_db_location())
 # db_connection.check_database()
@@ -220,31 +310,33 @@ class MovingAverageCrossover(MovingAverages):
 #                    interval=the_interval)
 # query.get_local_data()
 # price_data = query.view_data()['prices'].loc[:, ['datetime', 'close', 'open', 'high', 'low']]
-
 # # print(price_data)
+#
 # new_macd = MACD(
 #     data=price_data[['datetime', 'close']],
 #     function=the_function)
-
-# print(new_macd.__dict__['rate_of_change'])
-# new_macd.plot_macd()
 #
+# # print(new_macd.__dict__['rate_of_change'])
+# # new_macd.plot_macd(trace_only=False)
+# #
 # new_rsi = RSI(
 #     data=price_data[['datetime', 'close']],
 #     function=the_function,
 #     period=14)
-# new_rsi.plot_rsi()
-# # print(new_rsi.__dict__['rsi_line'])
-#
+# # new_rsi.plot_rsi()
+# # # print(new_rsi.__dict__['rsi_line'])
+# #
 # new_ha = HeikinAshi(function=the_function, data=price_data)
-# c = new_ha.ha_indicator()
-# print(len(c))
-# print(c)
-# new_ha.plot_ha()
-# # a = new_ha.get_values()
-# # print((a['open'] > a['close']) | (a['open'] < a['close']))
-#
-# new_ma = MovingAverageCrossover(data=price_data[['datetime', 'close']])
-# print(new_ma.get_indicator().query("indicator == 1"))
-#
-#
+# # c = new_ha.ha_indicator()
+# # print(len(c))
+# # print(c)
+# # new_ha.plot_ha()
+# # # a = new_ha.get_values()
+# # # print((a['open'] > a['close']) | (a['open'] < a['close']))
+# #
+# new_ma = MovingAverageCrossover(function=the_function,
+#                                 data=price_data[['datetime', 'close']], ma1_period=10, ma2_period=20)
+# # print(new_ma.get_indicator().query("indicator == 1"))
+# # d = new_ma.plot_MAC(trace_only=True)
+# # print(d)
+# new_ma.plot_MAC(trace_only=False)

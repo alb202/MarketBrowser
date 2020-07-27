@@ -1,19 +1,12 @@
-import datetime as datetime
-
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import main
 import pandas as pd
 import plotly.graph_objects as go
+from app_utilities import *
 from dash.dependencies import Output, Input, State
-from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
+from indicators import *
 from plotly.subplots import make_subplots
-
-USFEDHOLIDAYS = USFederalHolidayCalendar()
-USFEDHOLIDAYS.merge(GoodFriday, inplace=True)
-MARKET_HOLIDAYS = [i.astype(datetime.datetime).strftime('%Y-%m-%d') for i in
-                   list(pd.offsets.CustomBusinessDay(calendar=USFEDHOLIDAYS)
-                        .__dict__['holidays'])][200:700]
 
 
 def register_graphing_callbacks(app):
@@ -39,10 +32,13 @@ def register_graphing_callbacks(app):
         if "INTRADAY" not in input_function:
             input_interval = None
         stock_data = get_data(n_clicks, input_symbol, input_function, input_interval)
+
         params = dict(
             show_dividends=show_dividends,
-            nrows=2, ncols=1,
-            row_heights=[.85, .15],
+            nrows=4, ncols=1,
+            # nrows=5, ncols=1,
+            row_heights=[.50, .1, .2, .2],
+            # row_heights=[.22, .12, .22, .22, .22],
             vertical_spacing=.02)
         return [create_main_graph(data=stock_data, symbol=input_symbol,
                                   function=input_function, params=params),
@@ -67,7 +63,7 @@ def generate_function_dropdown():
                             {'label': 'Daily', 'value': 'TIME_SERIES_DAILY_ADJUSTED'},
                             {'label': 'Weekly', 'value': 'TIME_SERIES_WEEKLY_ADJUSTED'},
                             {'label': 'Monthly', 'value': 'TIME_SERIES_MONTHLY_ADJUSTED'}
-                        ], multi=False, value="TIME_SERIES_INTRADAY")
+                        ], multi=False, value="TIME_SERIES_DAILY_ADJUSTED")
 
 
 def generate_interval_dropdown():
@@ -127,45 +123,7 @@ def get_data(n_clicks, symbol, function, interval):
          'get_symbols': False})
 
 
-def make_rangebreaks(function):
-    """Set the range breaks for x axis
-    """
-    if 'INTRADAY' in function:
-        return [
-            dict(bounds=["sat", "mon"]),  # hide weekends
-            dict(values=MARKET_HOLIDAYS),
-            dict(pattern='hour', bounds=[16, 9.5])  # hide Christmas and New Year's
-        ]
 
-    if 'DAILY' in function:
-        return [
-            dict(bounds=["sat", "mon"]),  # ,  # hide weekends
-            dict(values=MARKET_HOLIDAYS),
-        ]
-    return None
-
-
-def get_layout_params(symbol):
-    """Create the layout parameters
-    """
-    symbol = symbol if symbol is not None else ' '
-    layout = dict(
-        width=1200,
-        height=600,
-        title=symbol,
-        xaxis1=dict(rangeselector=dict(buttons=list([
-            dict(count=5, label="5d", step="day", stepmode="backward"),
-            dict(count=15, label="15d", step="day", stepmode="backward"),
-            dict(count=1, label="1m", step="month", stepmode="backward"),
-            dict(count=3, label="3m", step="month", stepmode="backward"),
-            dict(count=6, label="6m", step="month", stepmode="backward"),
-            dict(count=1, label="YTD", step="year", stepmode="todate"),
-            dict(count=1, label="1y", step="year", stepmode="backward"),
-            dict(count=5, label="5y", step="year", stepmode="backward"),
-            dict(step="all")])), type="date", rangeslider=dict(visible=False)),
-        yaxis1=dict(title=dict(text="Price $ - US Dollars")),
-        yaxis2=dict(title=dict(text="Volume")))
-    return layout
 
 
 def create_main_graph(data, symbol, function, params):
@@ -178,28 +136,59 @@ def create_main_graph(data, symbol, function, params):
         shared_xaxes=True,
         vertical_spacing=params['vertical_spacing'])
     fig.update_xaxes(rangebreaks=make_rangebreaks(function))
-    fig.update_layout(get_layout_params(symbol=symbol))
-    fig.append_trace(row=1, col=1,
-                     trace=go.Candlestick(name='candlestick',
-                                          showlegend=False,
-                                          x=[] if len(data['prices']['datetime']) == 0 else data['prices'][
-                                              'datetime'].dt.strftime('%d/%m/%y %-H:%M'),
-                                          open=data['prices']['open'],
-                                          high=data['prices']['high'],
-                                          low=data['prices']['low'],
-                                          close=data['prices']['close']))
+    fig.add_trace(row=1, col=1,
+                  trace=go.Candlestick(name='candlestick',
+                                       showlegend=False,
+                                       x=[] if len(data['prices']['datetime']) == 0 else data['prices'][
+                                           'datetime'].dt.strftime('%d/%m/%y %-H:%M'),
+                                       open=data['prices']['open'],
+                                       high=data['prices']['high'],
+                                       low=data['prices']['low'],
+                                       close=data['prices']['close']))
     volume_color = data['prices']['close'].astype('float') - data['prices']['open'].astype('float')
     volume_color.loc[volume_color < 0] = -1
     volume_color.loc[volume_color > 0] = 1
     volume_color.replace({-1: '#FF0000', 0: '#C0C0C0', 1: '#009900'}, inplace=True)
-    fig.append_trace(row=2, col=1,
-                     trace=go.Bar(
-                         name='volume',
-                         showlegend=False,
-                         x=data['prices']['datetime'],
-                         marker_color=list(volume_color),
-                         y=data['prices']['volume']))
-
+    fig.add_trace(row=2, col=1,
+                  trace=go.Bar(
+                      name='volume',
+                      showlegend=False,
+                      x=data['prices']['datetime'],
+                      marker_color=list(volume_color),
+                      y=data['prices']['volume']))
+    if len(data['prices']['close'] > 0):
+        _macd = MACD(data=data['prices'][['datetime', 'close']], function=function)
+        _macd_plot = _macd.plot_macd(trace_only=True)
+        fig.add_trace(row=3, col=1, **_macd_plot['histogram'])
+        fig.add_trace(row=3, col=1, **_macd_plot['signal'])
+        fig.add_trace(row=3, col=1, **_macd_plot['macd'])
+        _rsi = RSI(data=data['prices'][['datetime', 'close']], function=function)
+        _rsi_plot = _rsi.plot_rsi(trace_only=True)
+        fig.add_trace(row=4, col=1, **_rsi_plot['rsi'])
+        fig.add_shape(row=4, col=1, **_rsi_plot['top_line'])
+        fig.add_shape(row=4, col=1, **_rsi_plot['bottom_line'])
+        _ha = HeikinAshi(data=data['prices'][['datetime', 'open', 'high', 'low', 'close']],
+                         function=function)
+        _ha_plot = _ha.plot_ha(trace_only=True, show_indicators=True)
+        _ha_data = _ha.get_values()
+        # fig.add_trace(row=5, col=1, **_ha_plot['ha'])
+        # fig['layout']['xaxis1'].update(rangeslider={'visible': False})
+        fig.add_trace(row=1, col=1, **_ha_plot['indicator'])
+        _mac = MovingAverageCrossover(data=pd.DataFrame({'datetime': _ha_data['datetime'],
+                                                         'close': _ha_data['close']}),
+                                      function=function,
+                                      ma1_period=10,
+                                      ma2_period=20)
+        _mac_plot = _mac.plot_MAC(trace_only=True)
+        fig.add_trace(row=1, col=1, **_mac_plot['ma1'])
+        fig.add_trace(row=1, col=1, **_mac_plot['ma2'])
+        fig.add_trace(row=1, col=1, **_mac_plot['crossover'])
+    else:
+        fig.add_trace(row=3, col=1, trace=go.Scatter(name='MACD', x=[], y=[]))
+        fig.add_trace(row=4, col=1, trace=go.Scatter(name='RSI', x=[], y=[]))
+        # fig.add_trace(row=5, col=1, trace=go.Scatter(name='HA', x=[], y=[]))
+        # fig.add_trace(row=6, col=1, trace=go.Scatter(name='MAC', x=[], y=[]))
+    fig.update_layout(get_layout_params(symbol=symbol))
     if 'yes' in params['show_dividends']:
         add_dividends_to_plot(fig=fig, data=data)
     return fig
