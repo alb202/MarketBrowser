@@ -183,6 +183,15 @@ def create_main_graph(data, symbol, function, params):
         fig.add_trace(row=1, col=1, **_mac_plot['ma1'])
         fig.add_trace(row=1, col=1, **_mac_plot['ma2'])
         fig.add_trace(row=1, col=1, **_mac_plot['crossover'])
+        _maz = MovingAverageZone(
+            datetime=_ha_data['datetime'],
+            open=_ha_data['open'],
+            close=_ha_data['close'],
+            function=function,
+            ma1_period=5,
+            ma2_period=30)
+        _maz_plot = _maz.plot_MAZ(trace_only=True)
+        fig.add_trace(row=1, col=1, **_maz_plot['indicator'])
     else:
         fig.add_trace(row=3, col=1, trace=go.Scatter(name='MACD', x=[], y=[]))
         fig.add_trace(row=4, col=1, trace=go.Scatter(name='RSI', x=[], y=[]))
