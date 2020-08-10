@@ -30,6 +30,8 @@ class Retracements:
             np.where(self.peak_directions == 1,
                      self.high,
                      self.low))
+        self.retracement_coords = None
+        self.retracement_indicies = None
 
     def plot_peaks(self, trace_only=False):
         peak_colors = np.where(self.peak_directions == 0, 'white',
@@ -62,13 +64,14 @@ class Retracements:
         fig.show()
         return fig
 
-    def plot_retracements(self, low=.4, high=.6, peak_find_max=4, retrace_find_max=4, trace_only=False):
+    def get_retracements(self, low=.4, high=.6, peak_find_max=4, retrace_find_max=4):
         peaks = [(i, j, k, l) for i, (j, k, l) in enumerate(
             zip(self.peak_directions[::-1],
                 self.peak_heights[::-1],
                 self.datetime[::-1])) if k is not None]
-        x_coords = []
-        y_coords = []
+        trace_x_coords = []
+        trace_y_coords = []
+        retracement_positions = [None] * len(self.datetime)
         for retrace_index, (price_index, peak_direction, price, price_date) in enumerate(peaks):
             peak_found = False
             bottom_found = False
@@ -91,16 +94,29 @@ class Retracements:
                         retrace_lower = peaks[retrace_index + to_bottom][2] + (low * peak_range)
                         retrace_higher = peaks[retrace_index + to_bottom][2] + (high * peak_range)
                         if (peaks[retrace_index][2] >= retrace_lower) & (peaks[retrace_index][2] <= retrace_higher):
-                            x_coords.append([peaks[retrace_index][3],
-                                             peaks[retrace_index + to_peak][3],
-                                             peaks[retrace_index + to_bottom][3],
-                                             peaks[retrace_index][3]])
-                            y_coords.append([peaks[retrace_index][2],
-                                             peaks[retrace_index + to_peak][2],
-                                             peaks[retrace_index + to_bottom][2],
-                                             peaks[retrace_index][2]])
+                            trace_x_coords.append([peaks[retrace_index][3],
+                                                   peaks[retrace_index + to_peak][3],
+                                                   peaks[retrace_index + to_bottom][3],
+                                                   peaks[retrace_index][3]])
+                            trace_y_coords.append([peaks[retrace_index][2],
+                                                   peaks[retrace_index + to_peak][2],
+                                                   peaks[retrace_index + to_bottom][2],
+                                                   peaks[retrace_index][2]])
+                            retracement_positions[price_index] = price
+
+        self.retracement_indicies = retracement_positions[::-1]
+        self.retracement_coords = dict(x_coords=trace_x_coords,
+                                       y_coords=trace_y_coords)
+
+    def plot_retracements(self, trace_only=False,
+                          show_retracement=True,
+                          show_retracement_price=True):
+        if self.retracement_coords is None:
+            self.get_retracements()
+
         retracement_traces = []
-        for x, y in zip(x_coords, y_coords):
+        for x, y in zip(self.retracement_coords['x_coords'],
+                        self.retracement_coords['y_coords']):
             retracement_traces.append(dict(trace=go.Scatter(
                 x=x,
                 y=y,
@@ -109,8 +125,19 @@ class Retracements:
                 line={'color': 'lightblue'},
                 fillcolor='blue',
                 opacity=.5)))
+
+        retracement_point_trace = dict(
+            trace=go.Scatter(
+                name='Retracement point', mode='markers',
+                showlegend=False,
+                x=self.datetime,
+                marker_color='green',
+                y=self.retracement_indicies))
+
         if trace_only:
-            return retracement_traces
+            return dict(retracement_traces=retracement_traces,
+                        retracement_point_trace=retracement_point_trace)
+
         price_trace = dict(
             trace=go.Scatter(
                 name='Price',
@@ -119,9 +146,14 @@ class Retracements:
                 x=self.datetime,
                 marker_color='black',
                 y=self.close))
+
         fig = make_subplots(specs=[[{"secondary_y": False}]])
-        for trace in retracement_traces:
-            fig.add_trace(row=1, col=1, secondary_y=False, **trace)
+
+        if show_retracement:
+            for trace in retracement_traces:
+                fig.add_trace(row=1, col=1, secondary_y=False, **trace)
+        if show_retracement_price:
+            fig.add_trace(row=1, col=1, secondary_y=False, **retracement_point_trace)
         fig.add_trace(row=1, col=1, secondary_y=False, **price_trace)
         fig.update_layout(dict(width=1200, height=500,
                                title=f'50% Retracements',
@@ -130,8 +162,12 @@ class Retracements:
         fig.update_xaxes(rangebreaks=make_rangebreaks(self.function))
         fig.show()
         return fig
-
 #
+# #
+# #
+# from config import *
+# from timeseries import *
+# from database import *
 #
 # cfg = Config("../resources/config.txt")
 # db_connection = Database(cfg.view_db_location())
@@ -153,4 +189,6 @@ class Retracements:
 #                  dates=price_data['datetime'],
 #                  function=the_function)
 # # print(a.plot_peaks(trace_only=True))
+# a.get_retracements(low=.38, high=.6)
 # a.plot_retracements()
+# # print(a.retracement_indicies)
