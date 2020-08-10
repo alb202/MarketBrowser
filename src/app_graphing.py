@@ -7,6 +7,7 @@ from app_utilities import *
 from dash.dependencies import Output, Input, State
 from indicators import *
 from plotly.subplots import make_subplots
+from retracements import *
 
 
 def register_graphing_callbacks(app):
@@ -192,6 +193,16 @@ def create_main_graph(data, symbol, function, params):
             ma2_period=30)
         _maz_plot = _maz.plot_MAZ(trace_only=True)
         fig.add_trace(row=1, col=1, **_maz_plot['indicator'])
+        _retrace = Retracements(high=_ha_data['high'],
+                                low=_ha_data['low'],
+                                close=_ha_data['close'],
+                                dates=_ha_data['datetime'],
+                                function=function)
+        _retrace.get_retracements(low=.38, high=.6)
+        _retrace_plots = _retrace.plot_retracements(trace_only=True)
+        fig.add_trace(row=1, col=1, **_retrace_plots['retracement_point_trace'])
+        for trace in _retrace_plots['retracement_traces']:
+            fig.add_trace(row=1, col=1, secondary_y=False, **trace)
     else:
         fig.add_trace(row=3, col=1, trace=go.Scatter(name='MACD', x=[], y=[]))
         fig.add_trace(row=4, col=1, trace=go.Scatter(name='RSI', x=[], y=[]))
