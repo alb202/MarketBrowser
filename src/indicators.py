@@ -36,6 +36,16 @@ class MACD(MovingAverages):
                     self.exponential_moving_average(ts=data[data_col], period=long_period)
         self.macd_signal = self.exponential_moving_average(ts=self.macd, period=signal_period)
         self.macd_histogram = self.macd - self.macd_signal
+        self.crossovers = self.macd_crossovers()
+
+    def table(self):
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': self.xaxis,
+                  'macd': self.macd,
+                  'macd_signal': self.macd_signal,
+                  'macd_histogram': self.macd_histogram,
+                  'macd_crossovers': self.crossovers}).set_index('datetime')
 
     def macd_crossovers(self):
         cross = np.sign(self.macd - self.macd_signal)
@@ -101,8 +111,16 @@ class RSI(MovingAverages):
                                                    period=self.period)
         self.rsi_line = (100 - (100 / (1 + (abs(self.avg_gain / self.avg_loss)))))
 
-    def plot_rsi(self, trace_only=False):
+    def table(self):
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': self.xaxis,
+                  'rsi': self.rsi_line,
+                  'rsi_crossover': np.where(self.rsi_line >= 80, 1,
+                                            np.where(self.rsi_line <= 20, -1, 0))}) \
+            .set_index('datetime')
 
+    def plot_rsi(self, trace_only=False):
         rsi_trace = dict(
             trace=go.Scatter(
                 name='RSI',
@@ -140,7 +158,7 @@ class HeikinAshi(MovingAverages):
             print("Timeseries must have datetime column! Exiting.")
             exit()
         self.function = function
-        self.xaxis = data['datetime']#.dt.strftime('%d/%m/%y %-H:%M')
+        self.xaxis = data['datetime']  # .dt.strftime('%d/%m/%y %-H:%M')
         self.ha_close = (data['open'] + data['high'] + data['low'] + data['close']) / 4
         ha_open = [self.ha_close[0]]
         for i in range(len(self.ha_close) - 1):
@@ -148,6 +166,17 @@ class HeikinAshi(MovingAverages):
         self.ha_open = pd.Series(ha_open)
         self.ha_low = pd.concat([data['low'], self.ha_close, self.ha_open], axis=1).min(axis=1)
         self.ha_high = pd.concat([data['high'], self.ha_close, self.ha_open], axis=1).max(axis=1)
+        self.indicator = self.ha_indicator()
+
+    def table(self):
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': self.xaxis,
+                  'ha_open': self.ha_open,
+                  'ha_high': self.ha_high,
+                  'ha_low': self.ha_low,
+                  'ha_close': self.ha_close,
+                  'ha_indicator': self.indicator}).set_index('datetime')
 
     def ha_indicator(self):
         current_change = self.ha_close > self.ha_open
@@ -234,13 +263,13 @@ class MovingAverageCrossover(MovingAverages):
                                   cross_down.replace({True: -1, False: 0}),
                                   cross_up.replace({True: 1, False: 0}))
 
-    def get_MAC_indicator(self):
-        return pd.DataFrame(
-            data={
-                'datetime': pd.Series(self.xaxis),
-                'indicator': pd.Series(self.indicator),
-                'ma1': pd.Series(self.ma1),
-                'ma2': pd.Series(self.ma2)})
+    def table(self):
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': self.xaxis,
+                  'mac_indicator': self.indicator,
+                  'mac_ma1': self.ma1,
+                  'mac_ma2': self.ma2}).set_index('datetime')
 
     def plot_MAC(self, trace_only=False):
         indicator_color = self.indicator
@@ -322,13 +351,17 @@ class MovingAverageZone(MovingAverages):
             trend_down.replace({True: -1, False: 0}),
             trend_up.replace({True: 1, False: 0}))
 
-    def get_MAZ_indicator(self):
-        return pd.DataFrame(
-            data={
-                'datetime': pd.Series(self.xaxis),
-                'indicator': pd.Series(self.indicator),
-                'ma1': pd.Series(self.ma1),
-                'ma2': pd.Series(self.ma2)})
+    def table(self):
+        # print('xaxis', len(self.xaxis), type(self.xaxis))
+        # print('indicator', len(self.indicator), type(self.indicator))
+        # print('ma1', len(self.ma1), type(self.ma1))
+        # print('ma2', len(self.ma2), type(self.ma2))
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': pd.Series(self.xaxis),
+                  'maz_indicator': pd.Series(self.indicator),
+                  'maz_ma1': pd.Series(self.ma1),
+                  'maz_ma2': pd.Series(self.ma2)}).set_index('datetime')
 
     def plot_MAZ(self, trace_only=False):
         indicator_color = self.indicator
