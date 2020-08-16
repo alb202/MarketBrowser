@@ -11,7 +11,7 @@ class Retracements:
         self.high = high.values
         self.low = low.values
         self.close = close.values
-        self.datetime = dates
+        self.xaxis = dates
         self.function = function
         self.maxima, _ = find_peaks(x=self.high,
                                     distance=peak_gap,
@@ -40,7 +40,7 @@ class Retracements:
             name='Peaks',
             mode='markers',
             showlegend=False,
-            x=self.datetime,
+            x=self.xaxis,
             marker_color=peak_colors,
             y=self.peak_heights))
         if trace_only:
@@ -50,7 +50,7 @@ class Retracements:
                 name='Price',
                 mode='lines',
                 showlegend=False,
-                x=self.datetime,
+                x=self.axis,
                 marker_color='black',
                 y=self.close))
         fig = make_subplots(specs=[[{"secondary_y": False}]])
@@ -68,10 +68,10 @@ class Retracements:
         peaks = [(i, j, k, l) for i, (j, k, l) in enumerate(
             zip(self.peak_directions[::-1],
                 self.peak_heights[::-1],
-                self.datetime[::-1])) if k is not None]
+                self.xaxis[::-1])) if k is not None]
         trace_x_coords = []
         trace_y_coords = []
-        retracement_positions = [None] * len(self.datetime)
+        retracement_positions = [None] * len(self.xaxis)
         for retrace_index, (price_index, peak_direction, price, price_date) in enumerate(peaks):
             peak_found = False
             bottom_found = False
@@ -108,6 +108,13 @@ class Retracements:
         self.retracement_coords = dict(x_coords=trace_x_coords,
                                        y_coords=trace_y_coords)
 
+    def table(self):
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': self.xaxis,
+                  'peaks': pd.Series(self.peak_directions),
+                  'retracements': pd.Series(self.retracement_indicies)}).set_index('datetime')
+
     def plot_retracements(self, trace_only=False,
                           show_retracement=True,
                           show_retracement_price=True):
@@ -130,7 +137,7 @@ class Retracements:
             trace=go.Scatter(
                 name='Retracement point', mode='markers',
                 showlegend=False,
-                x=self.datetime,
+                x=self.xaxis,
                 marker_color='green',
                 y=self.retracement_indicies))
 
@@ -143,7 +150,7 @@ class Retracements:
                 name='Price',
                 mode='lines',
                 showlegend=False,
-                x=self.datetime,
+                x=self.xaxis,
                 marker_color='black',
                 y=self.close))
 
