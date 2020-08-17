@@ -37,6 +37,7 @@ class MACD(MovingAverages):
         self.macd_signal = self.exponential_moving_average(ts=self.macd, period=signal_period)
         self.macd_histogram = self.macd - self.macd_signal
         self.crossovers = self.macd_crossovers()
+        self.macd_trend = np.where((self.macd_histogram - self.macd_histogram.shift(1)) >= 0, 1, -1)
 
     def table(self):
         return pd.DataFrame.from_dict(
@@ -45,7 +46,8 @@ class MACD(MovingAverages):
                   'macd': self.macd,
                   'macd_signal': self.macd_signal,
                   'macd_histogram': self.macd_histogram,
-                  'macd_crossovers': self.crossovers}).set_index('datetime')
+                  'macd_crossovers': self.crossovers,
+                  'macd_trend': self.macd_trend}).set_index('datetime')
 
     def macd_crossovers(self):
         cross = np.sign(self.macd - self.macd_signal)
