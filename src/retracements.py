@@ -77,14 +77,16 @@ class Retracements:
             bottom_found = False
             if (retrace_index < (len(peaks) - 2)) & (peak_direction == -1):
                 to_peak = 1
-                while (to_peak < retrace_find_max) & (peak_found is False):
+                while (to_peak < retrace_find_max) & (peak_found is False) & \
+                        ((retrace_index + to_peak) < len(peaks)):
                     if peaks[retrace_index + to_peak][1] == 1:
                         peak_found = True
                     else:
                         to_peak += 1
                 if peak_found:
                     to_bottom = to_peak + 1
-                    while (to_bottom < peak_find_max) & (bottom_found is False):
+                    while (to_bottom < peak_find_max) & (bottom_found is False) & \
+                            ((retrace_index + to_bottom) < len(peaks)):
                         if peaks[retrace_index + to_bottom][1] == -1:
                             bottom_found = True
                         else:
