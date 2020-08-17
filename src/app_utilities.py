@@ -53,3 +53,14 @@ def get_layout_params(symbol):
     # yaxis5=dict(title=dict(text="Hiekin Ashi")),
     # yaxis6=dict(title=dict(text="Moving Average Crossover")))
     return layout
+
+def round_float_columns(data, digits=2):
+    dtypes = data.dtypes
+    print(dtypes)
+    round_cols = [i for i, j in dtypes.items() if j == 'float64']
+    print(round_cols)
+    # new_data = data.copy(deep=True)
+    for i in round_cols:
+        data[i] = data[i].round(decimals=2)
+    # print(data.iloc[1, :])
+    return data

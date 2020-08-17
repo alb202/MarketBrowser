@@ -11,6 +11,7 @@ import dash_html_components as html
 from app_batch import *
 from app_data_status import *
 from app_graphing import *
+from app_indicators import *
 from app_market_symbols import *
 
 app = dash.Dash(
@@ -39,6 +40,25 @@ MarketBrowserTab = dcc.Tab(label='MarketBrowser', children=[
                                 html.P(hidden=True, id='plot_status_indicator')])])])])])])]),
     dbc.Card(style={"width": 'auto'}, children=[
         dbc.CardBody(children=[generate_plot()])])])
+
+# Create tab for plotting indicators
+IndicatorTab = dcc.Tab(label='IndicatorTable', children=[
+    dbc.Row(no_gutters=False, justify="start", children=[
+        dbc.Col(align='baseline', children=[
+            dbc.Card(style={"width": "auto"}, children=[
+                dbc.CardBody(children=[
+                    dbc.Row(align='baseline', no_gutters=False, justify='start', children=[
+                        dbc.Col(children=[
+                            dbc.Button(children=['View indicators ...'],
+                                       id='submit_indicator_val', n_clicks=0)]),
+                        dbc.Col(generate_indicator_symbol_input()),
+                        dbc.Col(generate_indicator_function_dropdown()),
+                        dbc.Col(generate_indicator_interval_dropdown()),
+                        dbc.Col(children=[
+                            dcc.Loading(id="indicators_loading", type="default", children=[
+                                html.P(hidden=True, id='indicator_status_indicator')])])])])])])]),
+    dbc.Card(style={"width": 'auto'}, children=[
+        dbc.CardBody(children=[generate_indicator_table()])])])
 
 # Tab for data status
 DataStatusTab = dcc.Tab(label="Data Status", children=[
@@ -104,7 +124,7 @@ MarketDownloaderTab = dcc.Tab(label='MarketDownloader', children=[
                                                    n_clicks=0, disabled=True)])])])])])])])])])])
 
 app.layout = html.Div(id='main', children=[
-    dcc.Tabs(children=[MarketBrowserTab, MarketDownloaderTab, DataStatusTab, MarketSymbolsTab])])
+    dcc.Tabs(children=[MarketBrowserTab, IndicatorTab, MarketDownloaderTab, DataStatusTab, MarketSymbolsTab])])
 
 if __name__ == '__main__':
     app.run_server(debug=True)
