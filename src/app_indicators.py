@@ -44,8 +44,51 @@ def register_graphing_callbacks(app):
 def generate_indicator_table():
     """Generate the main plot
     """
-    # return dcc.Graph(id='indicator_table')
-    return dash_table.DataTable(id='indicator_table')
+    macd_histogram__on = {'if': {'filter_query': '{macd_histogram} > 0', 'column_id': 'macd_histogram'},
+                          'backgroundColor': '#00FF00', 'color': 'black'}
+    macd_histogram__off = {'if': {'filter_query': '{macd_histogram} <= 0', 'column_id': 'macd_histogram'},
+                           'backgroundColor': '#FF0000', 'color': 'black'}
+    macd_trend__on = {'if': {'filter_query': '{macd_trend} > 0', 'column_id': 'macd_trend'},
+                      'backgroundColor': '#00FF00', 'color': 'black'}
+    macd_trend__off = {'if': {'filter_query': '{macd_trend} < 0', 'column_id': 'macd_trend'},
+                       'backgroundColor': '#FF0000', 'color': 'black'}
+    macd_crossovers__on = {'if': {'filter_query': '{macd_crossovers} > 0', 'column_id': 'macd_crossovers'},
+                           'backgroundColor': '#00FF00', 'color': 'black'}
+    macd_crossovers__off = {'if': {'filter_query': '{macd_crossovers} < 0', 'column_id': 'macd_crossovers'},
+                            'backgroundColor': '#FF0000', 'color': 'black'}
+    rsi_crossover__on = {'if': {'filter_query': '{rsi_crossover} > 0', 'column_id': 'rsi_crossover'},
+                         'backgroundColor': '#00FF00', 'color': 'black'}
+    rsi_crossover__off = {'if': {'filter_query': '{rsi_crossover} < 0', 'column_id': 'rsi_crossover'},
+                          'backgroundColor': '#FF0000', 'color': 'black'}
+    ha_indicator__on = {'if': {'filter_query': '{ha_indicator} > 0', 'column_id': 'ha_indicator'},
+                        'backgroundColor': '#00FF00', 'color': 'black'}
+    ha_indicator__off = {'if': {'filter_query': '{ha_indicator} < 0', 'column_id': 'ha_indicator'},
+                         'backgroundColor': '#FF0000', 'color': 'black'}
+    mac_indicator__on = {'if': {'filter_query': '{mac_indicator} > 0', 'column_id': 'mac_indicator'},
+                         'backgroundColor': '#00FF00', 'color': 'black'}
+    mac_indicator__off = {'if': {'filter_query': '{mac_indicator} < 0', 'column_id': 'mac_indicator'},
+                          'backgroundColor': '#FF0000', 'color': 'black'}
+    mac_positive__on = {'if': {'filter_query': '{mac_ma1} > {mac_ma2}', 'column_id': 'mac_indicator'},
+                        'backgroundColor': '#b3ffb8', 'color': 'black'}
+    mac_positive__off = {'if': {'filter_query': '{mac_ma1} < {mac_ma2}', 'column_id': 'mac_indicator'},
+                         'backgroundColor': '#e09292', 'color': 'black'}
+    maz_indicator__on = {'if': {'filter_query': '{maz_indicator} > 0', 'column_id': 'maz_indicator'},
+                         'backgroundColor': '#00FF00', 'color': 'black'}
+    maz_indicator__off = {'if': {'filter_query': '{maz_indicator} < 0', 'column_id': 'maz_indicator'},
+                          'backgroundColor': '#FF0000', 'color': 'black'}
+    retracements__on = {'if': {'filter_query': '{retracements} > 0', 'column_id': 'retracements'},
+                        'backgroundColor': '#00FF00', 'color': 'black'}
+    return dash_table.DataTable(id='indicator_table',
+                                style_data_conditional=[
+                                    macd_histogram__on, macd_histogram__off,
+                                    macd_crossovers__on, macd_crossovers__off,
+                                    macd_trend__on, macd_trend__off,
+                                    rsi_crossover__on, rsi_crossover__off,
+                                    ha_indicator__on, ha_indicator__off,
+                                    mac_positive__on, mac_positive__off,
+                                    mac_indicator__on, mac_indicator__off,
+                                    maz_indicator__on, maz_indicator__off,
+                                    retracements__on])
 
 
 def get_price_data(n_clicks, symbol, function, interval):
@@ -80,10 +123,11 @@ def create_indicators(data, function):
     # print(type(data))
     # print(len(data))
     if len(data) == 0:
-        table_columns = ['datetime', 'macd', 'macd_signal', 'macd_histogram', 'macd_crossovers', 'rsi',
-                         'rsi_crossover', 'ha_open', 'ha_high', 'ha_low', 'ha_close',
-                         'ha_indicator', 'mac_indicator', 'mac_ma1', 'mac_ma2', 'maz_indicator',
-                         'maz_ma1', 'maz_ma2', 'peaks', 'retracements']
+        table_columns = ['datetime', 'macd', 'macd_signal', 'macd_histogram', 'macd_crossovers',
+                         'macd_trend', 'rsi', 'rsi_crossover', 'ha_open', 'ha_high', 'ha_low',
+                         'ha_close', 'ha_indicator', 'mac_indicator', 'mac_ma1', 'mac_ma2',
+                         'maz_indicator', 'maz_ma1', 'maz_ma2', 'peaks', 'retracements']
+        table_columns = ['datetime']
         return pd.DataFrame.from_dict({i: [] for i in table_columns}, orient='columns')
 
     _macd = MACD(data=data.loc[:, ['datetime', 'close']], function=function)
@@ -126,7 +170,7 @@ def create_indicators(data, function):
     # print(_retrace_df)
 
     results = _macd_df.join(_rsi_df, how='outer')
-    results = results.join(_ha_df, how='outer')
+    # results = results.join(_ha_df, how='outer')
     results = results.join(_mac_df, how='outer')
     results = results.join(_maz_df, how='outer')
     results = results.join(_retrace_df, how='outer')
