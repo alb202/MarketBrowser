@@ -9,7 +9,7 @@ from indicators import *
 from retracements import *
 
 
-def register_graphing_callbacks(app):
+def register_indicator_callbacks(app):
     @app.callback(Output('input_indicator_interval', 'disabled'),
                   [Input('input_indicator_function', 'value')])
     def set_indicator_dropdown_enabled_state(function):
@@ -44,6 +44,10 @@ def register_graphing_callbacks(app):
 def generate_indicator_table():
     """Generate the main plot
     """
+    price_increase = {'if': {'filter_query': '{close} > {open}', 'column_id': 'close'},
+                      'backgroundColor': '#00FF00', 'color': 'black'}
+    price_decrease = {'if': {'filter_query': '{close} < {open}', 'column_id': 'close'},
+                      'backgroundColor': '#FF0000', 'color': 'black'}
     macd_histogram__on = {'if': {'filter_query': '{macd_histogram} > 0', 'column_id': 'macd_histogram'},
                           'backgroundColor': '#00FF00', 'color': 'black'}
     macd_histogram__off = {'if': {'filter_query': '{macd_histogram} <= 0', 'column_id': 'macd_histogram'},
@@ -80,6 +84,7 @@ def generate_indicator_table():
                         'backgroundColor': '#00FF00', 'color': 'black'}
     return dash_table.DataTable(id='indicator_table',
                                 style_data_conditional=[
+                                    price_increase, price_decrease,
                                     macd_histogram__on, macd_histogram__off,
                                     macd_crossovers__on, macd_crossovers__off,
                                     macd_trend__on, macd_trend__off,
@@ -119,14 +124,13 @@ def get_price_data(n_clicks, symbol, function, interval):
 def create_indicators(data, function):
     """Calculate the indicators for the table
     """
-    # print('data: ')
-    # print(type(data))
-    # print(len(data))
     if len(data) == 0:
-        table_columns = ['datetime', 'macd', 'macd_signal', 'macd_histogram', 'macd_crossovers',
-                         'macd_trend', 'rsi', 'rsi_crossover', 'ha_open', 'ha_high', 'ha_low',
-                         'ha_close', 'ha_indicator', 'mac_indicator', 'mac_ma1', 'mac_ma2',
-                         'maz_indicator', 'maz_ma1', 'maz_ma2', 'peaks', 'retracements']
+        # table_columns = ['datetime', 'open', 'high', 'low', 'close', 'macd', 'macd_signal',
+        #                  'macd_histogram', 'macd_crossovers', 'macd_trend', 'rsi',
+        #                  'rsi_crossover', 'ha_open', 'ha_high', 'ha_low', 'ha_close',
+        #                  'ha_indicator', 'mac_indicator', 'mac_ma1', 'mac_ma2', 'maz_indicator',
+        #                  'maz_ma1', 'maz_ma2', 'peaks', 'retracements']
+
         table_columns = ['datetime']
         return pd.DataFrame.from_dict({i: [] for i in table_columns}, orient='columns')
 
@@ -168,8 +172,9 @@ def create_indicators(data, function):
     _retrace.get_retracements(low=.38, high=.6)
     _retrace_df = _retrace.table()
     # print(_retrace_df)
-
-    results = _macd_df.join(_rsi_df, how='outer')
+    results = data.loc[:, ['datetime', 'open', 'high', 'low', 'close']].set_index('datetime').join(_macd_df,
+                                                                                                   how='outer')
+    results = results.join(_rsi_df, how='outer')
     # results = results.join(_ha_df, how='outer')
     results = results.join(_mac_df, how='outer')
     results = results.join(_maz_df, how='outer')

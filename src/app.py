@@ -21,6 +21,7 @@ register_graphing_callbacks(app)
 register_batch_callbacks(app)
 register_market_symbol_callbacks(app)
 register_data_status_callbacks(app)
+register_indicator_callbacks(app)
 
 # Create tab for plotting functions
 MarketBrowserTab = dcc.Tab(label='MarketBrowser', children=[
