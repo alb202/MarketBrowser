@@ -94,6 +94,10 @@ class TimeSeries():
         if len(self.local_data.obsolete_prices) > 0:
             self.delete_dataframe_from_database(
                 self.local_data.obsolete_prices, table=self.params['function'])
+        if self.local_data.incomplete_periods is not None:
+            print('Removing incomplete periods from database: ', self.local_data.incomplete_periods)
+            self.delete_dataframe_from_database(
+                self.local_data.incomplete_periods, table=self.params['function'])
         if len(self.local_data.obsolete_dividends) > 0:
             self.delete_dataframe_from_database(
                 self.local_data.obsolete_dividends, table='DIVIDEND')
@@ -129,6 +133,7 @@ class TimeSeries():
             self.dividends = self.get_dividend_data_from_database(con=con)
             self.obsolete_prices = None
             self.obsolete_dividends = None
+            self.incomplete_periods = None
 
         def get_price_data_from_database(self, con):
             """Retrieve data from database table
@@ -171,6 +176,14 @@ class TimeSeries():
                 if len(new_prices) > 0 else pd.DataFrame()
             self.obsolete_dividends = self.get_obsolete_dividends(new_data=new_dividends) \
                 if len(new_dividends) > 0 else pd.DataFrame()
+            if ('WEEK' in self.params['function']) or ('MONTH' in self.params['function']):
+                self.incomplete_periods = self.get_incomplete_periods(new_data=new_prices) \
+                    if len(new_prices) > 0 else pd.DataFrame()
+                if len(self.incomplete_periods) > 0:
+                    print('Removing the incomplete data from the self.prices')
+                    self.prices = self.prices.merge(
+                        self.incomplete_periods.loc[:, self.prices.columns],
+                        how='left', indicator=True).query('_merge == "left_only"').drop(['_merge'], axis=1)
             print("Obsolete Data: ")
             print(self.obsolete_prices)
             print(self.obsolete_dividends)
@@ -205,6 +218,50 @@ class TimeSeries():
                 log.info("No rows with conflicting data")
                 return pd.DataFrame()
             return conflicting_data.loc[:, sorted(value_cols + merge_cols)]
+
+        def get_incomplete_periods(self, new_data):
+            """Remove price data from partial weeks and months
+            """
+            cols = ['symbol', 'datetime', 'open', 'high', 'low', 'close', 'volume']
+            if 'ADJUSTED' in self.params['function']:
+                cols.append('adjusted_close')
+            if 'WEEK' in self.params['function']:
+                period = 'week'
+            if 'MONTH' in self.params['function']:
+                period = 'month'
+
+            print("value cols: ", cols)
+            price_data = pd.concat([self.prices.loc[:, cols], new_data.loc[:, cols]])
+            print('price_data: ', price_data.dtypes)
+            price_data['day'] = price_data['datetime'].dt.day
+            price_data['week'] = price_data['datetime'].dt.week
+            price_data['month'] = price_data['datetime'].dt.month
+            price_data['year'] = price_data['datetime'].dt.year
+            price_data = price_data.sort_values(['year', 'datetime', 'month', 'week', 'day']).reset_index(drop=True)
+            incomplete_price_index = price_data.duplicated(subset=['year', period], keep='last')
+            incomplete_prices = price_data.loc[incomplete_price_index, :].reset_index(drop=True) \
+                .drop(['year', 'month', 'week', 'day'], axis=1)
+            print('incomplete prices - ', period, '-', incomplete_prices)
+            # if len(incomplete_prices) > 0:
+            # self.prices = #### need to figure out a way to delete the incomplete rows from the db data and database, but NOT the new data
+
+            return incomplete_prices
+            # print("local cols: ", self.prices.columns)
+            # # print("new cols: ", new_data.columns)
+            # overlapping_data = self.overlapping_data_merge(
+            #     old_data=self.prices, new_data=new_data, merge_cols=merge_cols)
+            # print("overlapping_data: ", overlapping_data.loc[:, sorted(overlapping_data.columns)])
+            # if len(overlapping_data) == 0:
+            #     print("no overlapping data found")
+            #     log.info("No overlapping rows found")
+            #     return pd.DataFrame()
+            # query = ' | '.join(['(' + i + '_new' + ' != ' + i + ')' for i in value_cols])
+            # print(query)
+            # conflicting_data = overlapping_data.query(query)
+            # if len(conflicting_data) == 0:
+            #     log.info("No rows with conflicting data")
+            #     return pd.DataFrame()
+            # return conflicting_data.loc[:, sorted(value_cols + merge_cols)]
 
         def get_obsolete_dividends(self, new_data):
             """Remove price data already in database and delete obsolete rows
