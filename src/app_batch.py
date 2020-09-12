@@ -20,10 +20,13 @@ def register_batch_callbacks(app):
 
         print("Symbol list is NOT empty: ", batch_input_symbol)
         symbol_list = [i.strip(' ').upper() for i in
-                       batch_input_symbol.replace('\n',
-                                                  ' ').replace('\n', ' ').replace(',', ' ').replace(';', ' ').split(
-                           ' ')]
-        symbol_list = [i if i != '' else None for i in symbol_list]
+                       batch_input_symbol
+                           .replace('\n', '')
+                           .replace(',', ' ')
+                           .replace(';', ' ')
+                           .strip(' ')
+                           .split(' ')]
+        symbol_list = [i for i in symbol_list if i is not None]
 
         print('symbol_list: ', symbol_list)
         print('n clicks:', n_clicks)
