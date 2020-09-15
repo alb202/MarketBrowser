@@ -384,6 +384,9 @@ class TimeSeries():
             """Get fresh data from API
             """
             log.info('Getting data from server')
+            sess = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(max_retries=10)
+            sess.mount('http://', adapter)
             api_parameters = {"function": function,
                               "symbol": symbol,
                               "interval": interval,
@@ -399,7 +402,7 @@ class TimeSeries():
                 while (note_key in raw_data.keys()) | (err_key in raw_data.keys()):
                     if tries > 0:
                         time.sleep(15)
-                    raw_data = requests.get(
+                    raw_data = sess.get(
                         url=cfg.view_price_url(),
                         params=api_parameters).json()
                     if isinstance(raw_data, dict):
