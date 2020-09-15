@@ -246,22 +246,6 @@ class TimeSeries():
             # self.prices = #### need to figure out a way to delete the incomplete rows from the db data and database, but NOT the new data
 
             return incomplete_prices
-            # print("local cols: ", self.prices.columns)
-            # # print("new cols: ", new_data.columns)
-            # overlapping_data = self.overlapping_data_merge(
-            #     old_data=self.prices, new_data=new_data, merge_cols=merge_cols)
-            # print("overlapping_data: ", overlapping_data.loc[:, sorted(overlapping_data.columns)])
-            # if len(overlapping_data) == 0:
-            #     print("no overlapping data found")
-            #     log.info("No overlapping rows found")
-            #     return pd.DataFrame()
-            # query = ' | '.join(['(' + i + '_new' + ' != ' + i + ')' for i in value_cols])
-            # print(query)
-            # conflicting_data = overlapping_data.query(query)
-            # if len(conflicting_data) == 0:
-            #     log.info("No rows with conflicting data")
-            #     return pd.DataFrame()
-            # return conflicting_data.loc[:, sorted(value_cols + merge_cols)]
 
         def get_obsolete_dividends(self, new_data):
             """Remove price data already in database and delete obsolete rows
@@ -403,9 +387,9 @@ class TimeSeries():
             api_parameters = {"function": function,
                               "symbol": symbol,
                               "interval": interval,
-                              "outputsize": cfg.view_outputsize(),
-                              "apikey": cfg.view_apikey(),
-                              "datatype": cfg.view_format()}
+                              "apikey": cfg.view_price_apikey(),
+                              "outputsize": "full",
+                              "datatype": "json"}
             try:
                 err_key = 'Error Message'
                 note_key = 'Note'
@@ -416,7 +400,7 @@ class TimeSeries():
                     if tries > 0:
                         time.sleep(15)
                     raw_data = requests.get(
-                        url=cfg.view_url(),
+                        url=cfg.view_price_url(),
                         params=api_parameters).json()
                     if isinstance(raw_data, dict):
                         if (note_key in raw_data.keys()):
