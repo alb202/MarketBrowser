@@ -17,7 +17,8 @@ class Config:
     def __init__(self, path):
         log.info("Creating config object")
         self._config = self.load_config(path)
-        self._key = self.load_key(self.view_apikey_path())
+        self._price_key = self.load_key(self.view_price_apikey_path())
+        self._stock_key = self.load_key(self.view_stock_apikey_path())
 
     def __getattr__(self, name):
         try:
@@ -57,20 +58,23 @@ class Config:
 
         return cfg
 
-    def view_url(self):
-        return self._config['api_url']
+    def view_price_url(self):
+        return self._config['price_api_url']
 
-    def view_format(self):
-        return self._config['return_format']
+    def view_stock_url(self):
+        return self._config['stock_api_url']
 
-    def view_apikey(self):
-        return self._key
+    def view_price_apikey(self):
+        return self._price_key
 
-    def view_apikey_path(self):
-        return "../" + self._config['api_key_path']
+    def view_price_apikey_path(self):
+        return "../" + self._config['price_api_key_path']
 
-    def view_outputsize(self):
-        return self._config['outputsize']
+    def view_stock_apikey(self):
+        return self._stock_key
+
+    def view_stock_apikey_path(self):
+        return "../" + self._config['stock_api_key_path']
 
     def view_db_location(self):
         return "../" + self._config['db_location']
