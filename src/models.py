@@ -88,3 +88,21 @@ class Dividend(Base):
     dividend_amount = Column(Float, primary_key=False, nullable=False, unique=False)
     datetime = Column(Date, primary_key=True, nullable=False, unique=False)
     period = Column(Text, primary_key=True, nullable=False, unique=False)
+
+
+class Financials(Base):
+    """Model for financials class
+    """
+    __tablename__ = 'FINANCIALS'
+    symbol = Column(Text, primary_key=True, nullable=False, unique=True)
+    name = Column(Text, primary_key=False, nullable=True, unique=False)
+    type = Column(Text, primary_key=False, nullable=True, unique=False)
+    sector = Column(Text, primary_key=False, nullable=True, unique=False)
+    industry = Column(Text, primary_key=False, nullable=True, unique=False)
+    marketCap = Column(BigInteger, primary_key=False, nullable=True, unique=False)
+    sharesOutstanding = Column(BigInteger, primary_key=True, nullable=False, unique=False)
+    float = Column(Float, primary_key=False, nullable=True, unique=False)
+    # week52high = Column(Float, primary_key=False, nullable=True, unique=False)
+    # week52low = Column(Float, primary_key=False, nullable=True, unique=False)
+    # peRatio = Column(Float, primary_key=False, nullable=True, unique=False)
+    # beta = Column(Float, primary_key=False, nullable=True, unique=False)

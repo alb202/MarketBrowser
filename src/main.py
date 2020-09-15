@@ -23,11 +23,12 @@ def main(args):
     log.info('<<< Loading config and connecting to database >>>')
     cfg = Config(args['config']) if args['config'] is not None \
         else Config("../resources/config.txt")
-    if args['get_symbols']:
-        # market_symbols =
-        return MarketSymbols().show_all()  # market_symbols
+    log.info('<<< Creating database connection >>>')
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
+    if args['get_symbols']:
+        symbols = MarketSymbols(con=db_connection, cfg=cfg, refresh=args['refresh'])
+        return symbols.show_all()
     log.info('<<< Loading data status >>>')
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
@@ -128,6 +129,8 @@ def parse_args():
                         help='View the data status table')
     parser.add_argument('--get_symbols', action='store_true',
                         help='Get all market symbols')
+    parser.add_argument('--refresh', action='store_true',
+                        help='Update the market symbols from the API')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)
