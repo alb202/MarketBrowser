@@ -83,8 +83,8 @@ def main(args):
                             symbol=symbol_arg,
                             function=function_arg,
                             interval=interval_arg)
-    log.info("<<< Saving data statuses to database >>>")
-    data_status.save_table(database=db_connection)
+            log.info("<<< Saving data statuses to database >>>")
+            data_status.save_table(database=db_connection)
 
     if args['no_return'] | \
             (not args['symbol']) | \
