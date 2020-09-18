@@ -36,10 +36,11 @@ def register_batch_callbacks(app):
     @app.callback(Output('batch_input_symbol', 'value'),
                   [Input('get_selected_symbols', 'n_clicks'),
                    Input('get_previous_symbols', 'n_clicks')],
-                  [State('market_symbol_table', 'selected_rows'),
-                   State('market_symbol_table', 'data'),
+                  # [State('market_symbol_table', 'selected_rows'),
+                  [State('market_symbol_table', 'derived_virtual_selected_rows'),
+                   State('market_symbol_table', 'derived_virtual_data'),
                    State('data_status_table', 'data')])
-    def get_batch_symbols(allsymbols_click, previoussymbols_click, selected_rows, all_symbols, previous_symbols):
+    def get_batch_symbols(allsymbols_click, previoussymbols_click, selected_rows, all_rows, previous_symbols):
         """Begin plotting the price data
         """
         ctx = dash.callback_context
@@ -52,7 +53,7 @@ def register_batch_callbacks(app):
                 symbols = sorted(list(set([i['symbol'] for i in previous_symbols])))
             if button_id == "get_selected_symbols":
                 if selected_rows:
-                    symbols = sorted(list(set([all_symbols[i]['symbol'] for i in selected_rows])))
+                    symbols = sorted(list(set([all_rows[i]['symbol'] for i in selected_rows])))
                 else:
                     symbols = ['']
         else:
