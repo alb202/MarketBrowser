@@ -429,12 +429,12 @@ class TimeSeries():
             log.info("Formatting column names")
             return [i.split(".")[1].replace(" ", "_")[1:] for i in names]
 
-        @staticmethod
-        def set_column_dtypes(dataframe, dtypes):
-            """Set the dtypes for the columns
-            """
-            log.info(f"Setting column dtypes: {str(dtypes)}")
-            return {k: v for k, v in dtypes.items() if k in dataframe.columns}
+        # @staticmethod
+        # def set_column_dtypes(dataframe, dtypes):
+        #     """Set the dtypes for the columns
+        #     """
+        #     log.info(f"Setting column dtypes: {str(dtypes)}")
+        #     return {k: v for k, v in dtypes.items() if k in dataframe.columns}
 
         def process_data(self, raw_data, symbol, interval, dividend_period):
             """Convert the raw JSON time series data into pandas dataframe
@@ -456,9 +456,8 @@ class TimeSeries():
             price_data.loc[:, 'symbol'] = symbol
             if interval is not None:
                 price_data.loc[:, 'interval'] = interval
-            price_data = price_data.astype(
-                self.set_column_dtypes(
-                    dtypes=self.DTYPES, dataframe=price_data), copy=True)
+            price_data = utilities.convert_df_dtypes(
+                df=price_data, dtypes=self.DTYPES)
             if 'dividend_amount' in price_data.columns:
                 dividend_data = price_data.loc[:, ['symbol', 'datetime', 'dividend_amount']]
                 dividend_data = dividend_data.loc[dividend_data["dividend_amount"] > 0]

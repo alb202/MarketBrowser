@@ -102,3 +102,22 @@ def round_down(x, base=5):
     """Round a number down to the nearest multiple of <base>
     """
     return math.floor(x / base) * base
+
+
+# def set_column_dtypes(dataframe, dtypes):
+#     """Set the dtypes for the columns
+#     """
+#     log.info(f"Setting column dtypes: {str(dtypes)}")
+#     return {k: v for k, v in dtypes.items() if k in dataframe.columns}
+
+def convert_df_dtypes(df, dtypes):
+    if type(dtypes) != dict:
+        print('Need a dict of dtypes! No changes made')
+        return df
+    for key, value in dtypes.items():
+        print('key', key, 'value', value)
+        try:
+            df[key] = df[key].values.astype(value, copy=True)
+        except (KeyError, ValueError) as e:
+            print(e)
+    return df
