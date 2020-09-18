@@ -7,46 +7,51 @@ import urllib.request as ur
 from time import sleep
 
 import logger
-import numpy as np
 import pandas as pd
 import requests
+import utilities
 
 log = logger.get_logger(__name__)
 
 
 class MarketSymbols:
-    financials_table_name = 'FINANCIALS'
-    dtypes = {'symbol': str, 'marketCap': np.int64,
-              'sharesOutstanding': np.int64,  # 'price': float,
-              'float': np.int64, 'peRatio': float, 'beta': float}
-    symbol_lists = dict(
+    FINANCIALS_TABLE = 'FINANCIALS'
+    DATATYPES = {'symbol': str, 'name': str, 'type': str,
+                 'sector': str, 'industry': str, 'marketCap': float,
+                 'sharesOutstanding': float, 'float': float}
+    SYMBOL_URLS = dict(
         mutual_funds='ftp://ftp.nasdaqtrader.com/SymbolDirectory/mfundslist.txt',
         nasdaq_stocks='ftp://ftp.nasdaqtrader.com/SymbolDirectory/nasdaqtraded.txt',
         other_stocks='ftp://ftp.nasdaqtrader.com/SymbolDirectory/otherlisted.txt')
 
     def __init__(self, con, cfg, refresh=False):
         self.con = con
-        self.stocks = pd.read_sql_table(
-            table_name=self.financials_table_name,
-            con=self.con.engine,
-            index_col=None)
+        self.stocks = utilities.convert_df_dtypes(
+            df=pd.read_sql_table(
+                table_name=self.FINANCIALS_TABLE,
+                con=self.con.engine,
+                index_col=None),
+            dtypes=self.DATATYPES)
+
         if refresh | (len(self.stocks) == 0):
-            self.mutual_funds = None  # self.get_mutual_funds()
-            self.nasdaq_stocks = self.get_nasdaq_stocks()
+            # self.mutual_funds = self.get_mutual_funds(self.SYMBOL_URLS['mutual_funds'])
+            self.nasdaq_stocks = self.get_nasdaq_stocks(
+                self.SYMBOL_URLS['nasdaq_stocks'])
             self.stock_info = self.get_stock_info(cfg=cfg,
                                                   symbols=self.nasdaq_stocks['symbol'].values)
             all_stocks = self.nasdaq_stocks.merge(self.stock_info, how='left', on='symbol')
-            self.stocks = all_stocks \
-                .sort_values("symbol") \
-                .drop_duplicates() \
-                .reset_index(drop=True)  # \
-            # .astype(self.dtypes)
+            self.stocks = utilities.convert_df_dtypes(
+                df=all_stocks
+                    .sort_values("symbol")
+                    .drop_duplicates()
+                    .reset_index(drop=True),
+                dtypes=self.DTYPES)
             self.save_table()
 
     def get_mutual_funds(self):
         log.info('<<< Getting list of mutual funds >>>')
         cols = ['Fund Symbol', 'Fund Name', 'Fund Family Name']
-        url = self.symbol_lists['mutual_funds']
+        url = self.SYMBOL_URLS['mutual_funds']
         data = self.pull_data(url=url, cols=cols)
         data = data[data['Fund Family Name'] != 'NASDAQ Test Funds']
         data.loc[:, 'type'] = 'Mutual fund'
@@ -54,10 +59,8 @@ class MarketSymbols:
         data = data.rename(columns={'Fund Symbol': 'symbol', 'Fund Name': 'name'})
         return data.drop_duplicates().sort_values('symbol').reset_index(drop=True)
 
-    def get_nasdaq_stocks(self):
+    def get_nasdaq_stocks(self, url, cols=['Symbol', 'Security Name', 'ETF']):
         log.info('<<< Getting list of stocks and etfs >>>')
-        cols = ['Symbol', 'Security Name', 'ETF']
-        url = self.symbol_lists['nasdaq_stocks']
         data = self.pull_data(url=url, cols=cols)
         data.loc[data['ETF'] == 'Y', 'type'] = 'etf'
         data.loc[data['ETF'] == 'N', 'type'] = 'stock'
@@ -96,7 +99,7 @@ class MarketSymbols:
         """Save the data status dataframe to a table
         """
         log.info("Saving data status table to datebase")
-        self.con.update_table(self.show_all(), self.financials_table_name, "replace")
+        self.con.update_table(self.show_all(), self.FINANCIALS_TABLE, "replace")
 
     def get_stock_info(self, cfg, symbols):
         error_messages = ['Unknown symbol',
@@ -173,10 +176,10 @@ class MarketSymbols:
                         float_data = {'float': None}
 
                     try:
-                        shares_data = {'outstandingShares': shares_response.text}
+                        shares_data = {'sharesOutstanding': shares_response.text}
                     except (NameError, ValueError, AttributeError) as error:
                         log.info(error)
-                        shares_data = {'outstandingShares': None}
+                        shares_data = {'sharesOutstanding': None}
 
                     stock_responses.append(
                         {'symbol': symbol, **sector_data, **shares_data, **float_data, **marketcap_data})
