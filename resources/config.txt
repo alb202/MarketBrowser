@@ -1,8 +1,8 @@
 db_location = db/database.sqlite
-api_url = https://www.alphavantage.co/query?
-return_format = json
-outputsize = full
-api_key_path =  resources/api.key
+price_api_url = https://www.alphavantage.co/query?
+stock_api_url = https://cloud.iexapis.com/v1/
+price_api_key_path = resources/price_api.key
+stock_api_key_path = resources/stock_api.key
 user_timezone = US/Eastern
 market_timezone = US/Eastern
 common_timezone = UTC
