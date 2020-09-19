@@ -121,8 +121,26 @@ MarketDownloaderTab = dcc.Tab(label='MarketDownloader', children=[
                                         dbc.Col(align='center', children=[
                                             dcc.Loading(id="loading_indicator", type="default", children=[
                                                 html.P(hidden=True, id='status_indicator')])])]),
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(children=[
+                                        dbc.Col(children=[
+                                            dbc.FormGroup(children=[
+                                                dbc.Checklist(
+                                                    options=[
+                                                        {"label": "Monthly", "value": 1},
+                                                        {"label": "Weekly", "value": 2},
+                                                        {"label": "Daily", "value": 3},
+                                                        {"label": "Intraday - 60 Minute", "value": 4},
+                                                        {"label": "Intraday - 30 Minute", "value": 5},
+                                                        {"label": "Intraday - 15 Minute", "value": 6},
+                                                        {"label": "Intraday - 5 Minute", "value": 7}],
+                                                    value=[1, 2, 3, 4, 5, 6, 7],
+                                                    id="batch_download_options",
+                                                    inline=False,
+                                                    switch=True)])])]),
                                     dbc.Row(children=html.Hr()),
                                     dbc.Row(children=html.Br()),
+                                    # dbc.Row(children=html.Hr()),
                                     dbc.Row(align="middle", children=[
                                         dbc.Button(children=['Get tracked symbols ...'], id='get_previous_symbols',
                                                    n_clicks=0, disabled=True)]),
