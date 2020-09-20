@@ -13,6 +13,7 @@ from app_data_status import *
 from app_graphing import *
 from app_indicators import *
 from app_market_symbols import *
+from app_screener import *
 
 app = dash.Dash(
     suppress_callback_exceptions=True,
@@ -22,7 +23,7 @@ register_batch_callbacks(app)
 register_market_symbol_callbacks(app)
 register_data_status_callbacks(app)
 register_indicator_callbacks(app)
-
+register_screener_callbacks(app)
 # Create tab for plotting functions
 MarketBrowserTab = dcc.Tab(label='MarketBrowser', children=[
     dbc.Row(no_gutters=False, justify="start", children=[
@@ -149,8 +150,73 @@ MarketDownloaderTab = dcc.Tab(label='MarketDownloader', children=[
                                         dbc.Button(children=['Get selected symbols ...'], id='get_selected_symbols',
                                                    n_clicks=0, disabled=True)])])])])])])])])])])
 
+# Create tab for market screener
+MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
+    dbc.Row(children=[
+        dbc.Col(children=[
+            dbc.CardGroup([
+                dbc.Card(children=[
+                    dbc.CardBody(children=[
+                        dbc.Row(children=[
+                            dbc.Card(children=[
+                                dbc.CardBody(children=[
+                                    dbc.Row(align="middle", children=[
+                                        dbc.Button(children=['Get tracked symbols ...'], id='get_tracked_symbols',
+                                                   n_clicks=0, disabled=False)]),
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(children=[
+                                        dbc.Col(children=[
+                                            dbc.FormGroup(children=[
+                                                dbc.RadioItems(
+                                                    options=[
+                                                        {"label": "Monthly", "value": 1},
+                                                        {"label": "Weekly", "value": 2},
+                                                        {"label": "Daily", "value": 3},
+                                                        {"label": "Intraday - 60 Minute", "value": 4},
+                                                        {"label": "Intraday - 30 Minute", "value": 5},
+                                                        {"label": "Intraday - 15 Minute", "value": 6},
+                                                        {"label": "Intraday - 5 Minute", "value": 7}],
+                                                    value=3,
+                                                    id="screener_function_options",
+                                                    inline=False,
+                                                    switch=False)])])]),
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(no_gutters=False, justify='center', align='baseline', children=[
+                                        dbc.Col(width=True, children=[generate_screener_symbol_input()])]),
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(children=[
+                                        dbc.Col(children=[
+                                            dbc.Button(children=['Begin screener'], id='submit_screener',
+                                                       n_clicks=0)]),
+                                        dbc.Col(align='center', children=[
+                                            dcc.Loading(id="screener_loading_indicator", type="default", children=[
+                                                html.P(hidden=True, id='screener_status_indicator')])])]),
+                                    # dbc.Row(children=html.Hr()),
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(children=[
+                                        dbc.Col(children=[
+                                            dbc.FormGroup(children=[
+                                                dbc.Checklist(
+                                                    options=[
+                                                        {"label": "MACD Histogram", "value": 1},
+                                                        {"label": "MACD Trend", "value": 2},
+                                                        {"label": "RSI Crossover", "value": 3},
+                                                        {"label": "Moving Average Crossover", "value": 4},
+                                                        {"label": "Moving Average Zone", "value": 5},
+                                                        {"label": "50% Retracement", "value": 6}],
+                                                    value=[1, 2, 3, 4, 5, 6],
+                                                    id="screener_indicator_options",
+                                                    inline=False,
+                                                    switch=True)])])])])]),
+                            dbc.Card(children=[
+                                dbc.CardBody(children=[
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(children=[
+                                        dbc.Col(children=[generate_screener_table()])])])])])])])])])])])
+
 app.layout = html.Div(id='main', children=[
-    dcc.Tabs(children=[MarketBrowserTab, IndicatorTab, MarketDownloaderTab, DataStatusTab, MarketSymbolsTab])])
+    dcc.Tabs(children=[MarketBrowserTab, IndicatorTab, MarketDownloaderTab, MarketScreenerTab, DataStatusTab,
+                       MarketSymbolsTab])])
 
 if __name__ == '__main__':
     app.run_server(debug=True)
