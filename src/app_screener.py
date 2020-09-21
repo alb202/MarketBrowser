@@ -1,11 +1,10 @@
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-import dash_table
 import main
-import pandas as pd
 from app_utilities import *
 from dash.dependencies import Output, Input, State
 from indicators import *
+from plotly.subplots import make_subplots
 from retracements import *
 
 
@@ -33,32 +32,47 @@ def register_screener_callbacks(app):
             df = df.loc[df['interval'] == INTERVAL_LOOKUP[function], :]
         return ' '.join(sorted(list(df['symbol'].values)))
 
-    @app.callback([Output('screener_table', 'data'),
+    @app.callback([Output('screener_plot', 'figure'),
                    Output('screener_status_indicator', 'hidden')],
                   [Input('submit_screener', 'n_clicks')],
                   [State('screener_input_symbol', 'value'),
                    State('screener_function_options', 'value'),
                    State('screener_indicator_options', 'value')])
-    def begin_screener(n_clicks, symbols, functions, indicators):
+    def begin_screener(n_clicks, symbols, function, indicators):
         """Begin plotting the price data
         """
         if n_clicks == 0:
-            return [pd.DataFrame({}).to_dict('records'), True]
+            return [screener_plots(dfs=[]), True]
+
+        interval = INTERVAL_LOOKUP[function] if function >= 4 else None
+        function = FUNCTION_LOOKUP[function]
         symbols = process_symbol_input(symbols)
         print(symbols)
 
-        return [pd.DataFrame({}).to_dict('records'), True]
-        # for symbol in
-        # if "INTRADAY" not in input_function:
-        #     input_interval = None
-        # # price_data =
-        # indicator_data = create_indicators(
-        #     data=get_price_data(n_clicks, input_symbol, input_function, input_interval),
-        #     function=input_function)
-        #
-        # return [indicator_data.to_dict('records'),
-        #         [{"name": i, "id": i} for i in indicator_data.columns],
-        #         n_clicks == 0]
+        indicator_list = dict()
+        for symbol in symbols:
+            indicator_data = create_indicators(
+                data=get_price_data(n_clicks=n_clicks,
+                                    symbol=symbol,
+                                    function=function,
+                                    interval=interval),
+                function=function,
+                indicators=indicators)
+
+            plot_columns = ['datetime'
+                            'macd_crossovers',
+                            'macd_trend',
+                            'rsi_crossover',
+                            'mac_indicator',
+                            'maz_indicator',
+                            'retracements']
+            indicator_data = indicator_data.set_index(['datetime'])
+            indicator_data = indicator_data.loc[:, [col for col in indicator_data.columns if col in plot_columns]]
+
+            print(indicator_data.head(5))
+            indicator_list[symbol] = indicator_data
+
+        return [screener_plots(dfs=indicator_list), n_clicks == 0]
 
 
 def generate_screener_symbol_input():
@@ -71,66 +85,46 @@ def generate_screener_symbol_input():
                         id='screener_input_symbol')
 
 
-def generate_screener_table():
+def screener_plots(dfs=[]):
     """Generate the input for creating symbols
     """
-    return dash_table.DataTable(
-        id='screener_table')
+    if not dfs:
+        return make_subplots(rows=1, cols=1)
+    cs = [[0.0, 'red'],
+          [0.5, 'lightgrey'],
+          [1.0, 'green']]
 
+    data_list = [(key, value) for key, value in dfs.items()]
+    data_list = sorted(data_list, reverse=True, key=lambda x: (x[1].iloc[0, :].sum(),
+                                                               x[1].iloc[1, :].sum(),
+                                                               x[1].iloc[2, :].sum(),
+                                                               x[1].iloc[3, :].sum(),
+                                                               x[1].iloc[4, :].sum()))
+    subplot_titles = [i[0] for i in data_list]
+    data_list = [i[1] for i in data_list]
 
-def generate_indicator_table():
-    """Generate the main plot
-    """
-    price_increase = {'if': {'filter_query': '{close} > {open}', 'column_id': 'close'},
-                      'backgroundColor': '#00FF00', 'color': 'black'}
-    price_decrease = {'if': {'filter_query': '{close} < {open}', 'column_id': 'close'},
-                      'backgroundColor': '#FF0000', 'color': 'black'}
-    macd_histogram__on = {'if': {'filter_query': '{macd_histogram} > 0', 'column_id': 'macd_histogram'},
-                          'backgroundColor': '#00FF00', 'color': 'black'}
-    macd_histogram__off = {'if': {'filter_query': '{macd_histogram} <= 0', 'column_id': 'macd_histogram'},
-                           'backgroundColor': '#FF0000', 'color': 'black'}
-    macd_trend__on = {'if': {'filter_query': '{macd_trend} > 0', 'column_id': 'macd_trend'},
-                      'backgroundColor': '#00FF00', 'color': 'black'}
-    macd_trend__off = {'if': {'filter_query': '{macd_trend} < 0', 'column_id': 'macd_trend'},
-                       'backgroundColor': '#FF0000', 'color': 'black'}
-    macd_crossovers__on = {'if': {'filter_query': '{macd_crossovers} > 0', 'column_id': 'macd_crossovers'},
-                           'backgroundColor': '#00FF00', 'color': 'black'}
-    macd_crossovers__off = {'if': {'filter_query': '{macd_crossovers} < 0', 'column_id': 'macd_crossovers'},
-                            'backgroundColor': '#FF0000', 'color': 'black'}
-    rsi_crossover__on = {'if': {'filter_query': '{rsi_crossover} > 0', 'column_id': 'rsi_crossover'},
-                         'backgroundColor': '#00FF00', 'color': 'black'}
-    rsi_crossover__off = {'if': {'filter_query': '{rsi_crossover} < 0', 'column_id': 'rsi_crossover'},
-                          'backgroundColor': '#FF0000', 'color': 'black'}
-    ha_indicator__on = {'if': {'filter_query': '{ha_indicator} > 0', 'column_id': 'ha_indicator'},
-                        'backgroundColor': '#00FF00', 'color': 'black'}
-    ha_indicator__off = {'if': {'filter_query': '{ha_indicator} < 0', 'column_id': 'ha_indicator'},
-                         'backgroundColor': '#FF0000', 'color': 'black'}
-    mac_indicator__on = {'if': {'filter_query': '{mac_indicator} > 0', 'column_id': 'mac_indicator'},
-                         'backgroundColor': '#00FF00', 'color': 'black'}
-    mac_indicator__off = {'if': {'filter_query': '{mac_indicator} < 0', 'column_id': 'mac_indicator'},
-                          'backgroundColor': '#FF0000', 'color': 'black'}
-    mac_positive__on = {'if': {'filter_query': '{mac_ma1} > {mac_ma2}', 'column_id': 'mac_indicator'},
-                        'backgroundColor': '#b3ffb8', 'color': 'black'}
-    mac_positive__off = {'if': {'filter_query': '{mac_ma1} < {mac_ma2}', 'column_id': 'mac_indicator'},
-                         'backgroundColor': '#e09292', 'color': 'black'}
-    maz_indicator__on = {'if': {'filter_query': '{maz_indicator} > 0', 'column_id': 'maz_indicator'},
-                         'backgroundColor': '#00FF00', 'color': 'black'}
-    maz_indicator__off = {'if': {'filter_query': '{maz_indicator} < 0', 'column_id': 'maz_indicator'},
-                          'backgroundColor': '#FF0000', 'color': 'black'}
-    retracements__on = {'if': {'filter_query': '{retracements} > 0', 'column_id': 'retracements'},
-                        'backgroundColor': '#00FF00', 'color': 'black'}
-    return dash_table.DataTable(id='indicator_table',
-                                style_data_conditional=[
-                                    price_increase, price_decrease,
-                                    macd_histogram__on, macd_histogram__off,
-                                    macd_crossovers__on, macd_crossovers__off,
-                                    macd_trend__on, macd_trend__off,
-                                    rsi_crossover__on, rsi_crossover__off,
-                                    ha_indicator__on, ha_indicator__off,
-                                    mac_positive__on, mac_positive__off,
-                                    mac_indicator__on, mac_indicator__off,
-                                    maz_indicator__on, maz_indicator__off,
-                                    retracements__on])
+    fig = make_subplots(rows=len(dfs), cols=1,
+                        row_heights=[100] * len(dfs),
+                        shared_xaxes=True,
+                        subplot_titles=subplot_titles)
+    fig.update_layout(
+        width=800,
+        height=(60 * len(data_list[0].columns)) * len(dfs))
+    fig.update(layout_showlegend=False)
+    fig.update(layout_coloraxis_showscale=False)
+
+    for i, df in enumerate(data_list):
+        df = df.head(100)
+        df = df.fillna(0)
+        hm = go.Heatmap(
+            {'z': df.transpose().values.tolist(),
+             'y': df.columns.tolist(),
+             'x': df.index.tolist()},
+            colorscale=cs, showscale=False, xgap=1, ygap=1, zmin=-1, zmax=1)
+        fig.append_trace(hm, row=i + 1, col=1)
+    fig.layout.coloraxis.showscale = False
+
+    return fig
 
 
 def generate_indicator_symbol_input():

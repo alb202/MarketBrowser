@@ -24,6 +24,7 @@ register_market_symbol_callbacks(app)
 register_data_status_callbacks(app)
 register_indicator_callbacks(app)
 register_screener_callbacks(app)
+
 # Create tab for plotting functions
 MarketBrowserTab = dcc.Tab(label='MarketBrowser', children=[
     dbc.Row(no_gutters=False, justify="start", children=[
@@ -38,8 +39,11 @@ MarketBrowserTab = dcc.Tab(label='MarketBrowser', children=[
                         dbc.Col(generate_interval_dropdown()),
                         dbc.Col(children=[generate_show_dividend_checkbox()]),
                         dbc.Col(children=[
-                            dcc.Loading(id="plot_loading", type="default", children=[
-                                html.P(hidden=True, id='plot_status_indicator')])])])])])])]),
+                            dcc.Loading(id="plot_loading",
+                                        type="default",
+                                        children=[html.P(
+                                            hidden=True,
+                                            id='plot_status_indicator')])])])])])])]),
     dbc.Card(style={"width": 'auto'}, children=[
         dbc.CardBody(children=[generate_plot()])])])
 
@@ -188,9 +192,12 @@ MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
                                         dbc.Col(children=[
                                             dbc.Button(children=['Begin screener'], id='submit_screener',
                                                        n_clicks=0)]),
-                                        dbc.Col(align='center', children=[
-                                            dcc.Loading(id="screener_loading_indicator", type="default", children=[
-                                                html.P(hidden=True, id='screener_status_indicator')])])]),
+                                        dbc.Col(children=[
+                                            dcc.Loading(
+                                                id="screener_loading",
+                                                type="default",
+                                                children=[html.P(hidden=True,
+                                                                 id='screener_status_indicator')])])]),
                                     # dbc.Row(children=html.Hr()),
                                     dbc.Row(children=html.Br()),
                                     dbc.Row(children=[
@@ -199,24 +206,30 @@ MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
                                                 dbc.Checklist(
                                                     options=[
                                                         {"label": "MACD Histogram", "value": 1},
-                                                        {"label": "MACD Trend", "value": 2},
-                                                        {"label": "RSI Crossover", "value": 3},
-                                                        {"label": "Moving Average Crossover", "value": 4},
-                                                        {"label": "Moving Average Zone", "value": 5},
-                                                        {"label": "50% Retracement", "value": 6}],
-                                                    value=[1, 2, 3, 4, 5, 6],
+                                                        # {"label": "MACD Trend", "value": 2},
+                                                        {"label": "RSI Crossover", "value": 2},
+                                                        {"label": "Moving Average Crossover", "value": 3},
+                                                        {"label": "Moving Average Zone", "value": 4},
+                                                        {"label": "50% Retracement", "value": 5}],
+                                                    value=[1, 2, 3, 4, 5],
                                                     id="screener_indicator_options",
                                                     inline=False,
                                                     switch=True)])])])])]),
-                            dbc.Card(children=[
-                                dbc.CardBody(children=[
-                                    dbc.Row(children=html.Br()),
-                                    dbc.Row(children=[
-                                        dbc.Col(children=[generate_screener_table()])])])])])])])])])])])
+                            dbc.Card(style={"width": 'auto'}, children=[
+                                dbc.CardBody(id='screener_plot_cardbody',
+                                             children=[
+                                                 dbc.Row(align='baseline',
+                                                         no_gutters=False,
+                                                         justify='start',
+                                                         children=[
+                                                             dbc.Col(
+                                                                 children=[
+                                                                     dcc.Graph(
+                                                                         id='screener_plot')])])])])])])])])])])])
 
 app.layout = html.Div(id='main', children=[
-    dcc.Tabs(children=[MarketBrowserTab, IndicatorTab, MarketDownloaderTab, MarketScreenerTab, DataStatusTab,
-                       MarketSymbolsTab])])
+    dcc.Tabs(children=[MarketBrowserTab, IndicatorTab, MarketDownloaderTab,
+                       MarketScreenerTab, DataStatusTab, MarketSymbolsTab])])
 
 if __name__ == '__main__':
     app.run_server(debug=True)
