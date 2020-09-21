@@ -89,7 +89,7 @@ def process_symbol_input(symbols):
         .replace(';', ' ')
         .strip(' ')
         .split(' ')]
-    return [i for i in symbols if i is not None]
+    return sorted(list({i for i in symbols if i is not None}))
 
 
 def get_price_data(n_clicks, symbol, function, interval):
