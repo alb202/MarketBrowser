@@ -33,7 +33,7 @@ class Config:
         log.info("Loading API key")
         try:
             with open("./" + path, 'r') as file:
-                data = file.read().replace('\n', '').replace(' ', '').replace('\t', '')
+                data = file.read().split('\n')
         except (IOError, FileNotFoundError):
             log.warning("API key file not found. Exiting!")
             sys.exit()

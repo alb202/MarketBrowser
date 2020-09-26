@@ -5,10 +5,9 @@ This module controls the request of data from the server and formatting of times
 
 import datetime as dt
 import sys
-import time
 
+import alphavantage
 import logger
-import numpy as np
 import pandas as pd
 import requests
 import utilities
@@ -242,8 +241,6 @@ class TimeSeries():
             incomplete_prices = price_data.loc[incomplete_price_index, :].reset_index(drop=True) \
                 .drop(['year', 'month', 'week', 'day'], axis=1)
             print('incomplete prices - ', period, '-', incomplete_prices)
-            # if len(incomplete_prices) > 0:
-            # self.prices = #### need to figure out a way to delete the incomplete rows from the db data and database, but NOT the new data
 
             return incomplete_prices
 
@@ -346,31 +343,16 @@ class TimeSeries():
     class RemoteData:
         """Manage time series data
         """
-        DTYPES = {"symbol": str
-            , "datetime": 'datetime64'
-            , "open": float
-            , "high": float
-            , "low": float
-            , "close": float
-            , "adjusted_close": float
-            , "volume": np.int64
-            , "interval": str
-            , "dividend_amount": float
-            , "split_coefficient": float
-                  }
-
         def __init__(self, cfg, local_data, params):
             log.info("Creating TimeSeries object")
-            raw_data = self.get_data_from_server(
-                cfg=cfg,
+
+            av = alphavantage.AlphaVantage(keys=cfg.view_price_apikey())
+            processed_data = av.get_data_from_api(
                 symbol=params['symbol'],
                 function=params['function'],
-                interval=params['interval'])
-            processed_data = self.process_data(
-                raw_data=raw_data,
-                symbol=params['symbol'],
                 interval=params['interval'],
                 dividend_period=params['period'])
+
             self.prices = self.get_unique_data(
                 old_data=local_data['prices'],
                 new_data=processed_data['prices'],
@@ -384,108 +366,15 @@ class TimeSeries():
             """Get fresh data from API
             """
             log.info('Getting data from server')
-            sess = requests.Session()
-            adapter = requests.adapters.HTTPAdapter(max_retries=10)
-            sess.mount('http://', adapter)
-            api_parameters = {"function": function,
-                              "symbol": symbol,
-                              "interval": interval,
-                              "apikey": cfg.view_price_apikey(),
-                              "outputsize": "full",
-                              "datatype": "json"}
-            try:
-                err_key = 'Error Message'
-                note_key = 'Note'
-                raw_data = {note_key: '', err_key: ''}
-                error = False
-                tries = 0
-                while (note_key in raw_data.keys()) | (err_key in raw_data.keys()):
-                    if tries > 0:
-                        time.sleep(15)
-                    raw_data = sess.get(
-                        url=cfg.view_price_url(),
-                        params=api_parameters).json()
-                    if isinstance(raw_data, dict):
-                        if (note_key in raw_data.keys()):
-                            msg = raw_data[note_key]
-                            error = True
-                        if (err_key in raw_data.keys()):
-                            msg = raw_data[err_key]
-                            error = True
-                    tries += 1
-                    if error:
-                        log.warn(f"API call unsuccessful: {msg}. Trying again ...")
-                log.info("Object loaded with raw data")
-            except requests.RequestException as error:
-                log.info("Data grab failed. Exiting!")
-                log.warn(error)
-                sys.exit()
-            return raw_data
 
-        @staticmethod
-        def format_column_names(names):
-            """Format column names for pandas
-            """
-            log.info("Formatting column names")
-            return [i.split(".")[1].replace(" ", "_")[1:] for i in names]
-
-        # @staticmethod
-        # def set_column_dtypes(dataframe, dtypes):
-        #     """Set the dtypes for the columns
-        #     """
-        #     log.info(f"Setting column dtypes: {str(dtypes)}")
-        #     return {k: v for k, v in dtypes.items() if k in dataframe.columns}
-
-        def process_data(self, raw_data, symbol, interval, dividend_period):
-            """Convert the raw JSON time series data into pandas dataframe
-            """
-            log.info("Processing raw data from API")
-            print(raw_data)
-            if raw_data is None:
-                log.warning("No raw data to process")
-                return {'prices': pd.DataFrame(),
-                        'dividends': pd.DataFrame()}
-            price_data = pd.DataFrame.from_dict(
-                raw_data[list(
-                    filter(lambda x: x != "Meta Data",
-                           raw_data.keys()))[0]]).transpose()
-
-            price_data.columns = self.format_column_names(price_data.columns)
-            price_data.reset_index(drop=False, inplace=True)
-            price_data.rename(columns={"index": "datetime"}, inplace=True)
-            price_data.loc[:, 'symbol'] = symbol
-            if interval is not None:
-                price_data.loc[:, 'interval'] = interval
-            price_data = utilities.convert_df_dtypes(
-                df=price_data, dtypes=self.DTYPES)
-            if 'dividend_amount' in price_data.columns:
-                dividend_data = price_data.loc[:, ['symbol', 'datetime', 'dividend_amount']]
-                dividend_data = dividend_data.loc[dividend_data["dividend_amount"] > 0]
-                if len(dividend_data) > 0:
-                    dividend_data.loc[:, 'period'] = dividend_period
-                    dividend_data = dividend_data. \
-                        drop_duplicates(). \
-                        sort_values('datetime'). \
-                        reset_index(drop=True)
-                price_data = price_data.drop('dividend_amount', axis=1)
-            else:
-                dividend_data = None
-            price_data = price_data[price_data['datetime'].map(
-                pd.tseries.offsets.BDay().is_on_offset)]
-            log.info(f"Time series data created with columns: {str(list(price_data.columns))}")
-            return {'prices': price_data, 'dividends': dividend_data}
 
         @staticmethod
         def get_unique_data(old_data, new_data, sort_col):
-            # print("new_data", new_data)
-            # print("old_data", old_data)
             if new_data is None:
                 return pd.DataFrame()
             if len(new_data) == 0:
                 # print("newdata is none")
                 return new_data
-            # print("newdata is not none", len(new_data))
-            # print(new_data.dtypes)
             return new_data \
                 .merge(
                 old_data,
