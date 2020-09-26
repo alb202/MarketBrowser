@@ -1,3 +1,4 @@
+import app_utilities
 import dash
 import dash_core_components as dcc
 import main
@@ -20,15 +21,16 @@ def register_batch_callbacks(app):
             return [True]
 
         print("Symbol list is NOT empty: ", batch_input_symbol)
-        symbol_list = [i.strip(' ').upper() for i in
-                       batch_input_symbol
-                           .replace('\n', '')
-                           .replace(',', ' ')
-                           .replace(';', ' ')
-                           .strip(' ')
-                           .split(' ')]
-        symbol_list = [i for i in symbol_list if i is not None]
-
+        # symbol_list = [i.strip(' ').upper() for i in
+        #                batch_input_symbol
+        #                    .replace('\n', '')
+        #                    .replace(',', ' ')
+        #                    .replace(';', ' ')
+        #                    .strip(' ')
+        #                    .split(' ')]
+        # symbol_list = [i for i in symbol_list if i is not None]
+        symbol_list = app_utilities.process_symbol_input(batch_input_symbol)
+        print('Symbol list: ', symbol_list)
         params = set_batch_params(batch_options)
 
         print('params: ', params)
