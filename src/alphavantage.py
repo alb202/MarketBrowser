@@ -31,7 +31,6 @@ class AlphaVantage:
 
     def __init__(self, keys, max_retries=10, retry_sleep=0):
         self._keys = keys
-        # self.active_key = 0
         self.session = requests.Session()
         self.max_retries = max_retries
         self._sleep = retry_sleep
@@ -56,18 +55,7 @@ class AlphaVantage:
         for line in response.iter_lines():
             if re.match(ip_address, line.decode("utf-8")):
                 proxies.append(line.decode("utf-8"))
-        return proxies  # [0:20]
-
-    # def get_proxy(self):
-    #     return self.proxies[random.randint(0, len(self.proxies) - 1)]
-
-    # def switch_key(self):
-    #     print('The active key is :', self.active_key)
-    #     if self.active_key < (len(self._keys)-1):
-    #         self.active_key += 1
-    #     else:
-    #         self.active_key = 0
-    #     print('The active key is now:', self.active_key)
+        return proxies
 
     @staticmethod
     def format_column_names(names):
@@ -153,14 +141,16 @@ class AlphaVantage:
             if tries == 0:
                 proxies = None
             else:
-                proxies = {'http': next(proxy_pool), 'https': next(proxy_pool)}
+                next_proxy = next(proxy_pool)
+                proxies = {'http': next_proxy,
+                           'https': next_proxy}
             api_parameters['apikey'] = next(api_keys)
             print('Using key: ', api_parameters['apikey'])
             print('Using proxy: ', proxies)
             try:
                 response = self.session.get(
-                    url=self.AV_URL,
-                    params=api_parameters, proxies=proxies)
+                    url=self.AV_URL, params=api_parameters,
+                    proxies=proxies, timeout=(5, 5))
             except requests.RequestException as e:
                 log.info("Data grab failed. Exiting!")
                 log.warn(e)
@@ -182,11 +172,8 @@ class AlphaVantage:
                         log.info(f"API call successful: {symbol} {function} {interval} ...")
                         return response.json()
                     log.warn(f"API call error: {msg}. Trying again ...")
-                # self.switch_key()
                 if tries >= self.max_retries:
                     return None
-                # if (tries % len(self._keys)) == 1:
-                #     time.sleep(self._sleep)
                 tries += 1
 
 #
