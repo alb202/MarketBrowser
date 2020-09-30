@@ -92,7 +92,7 @@ def process_symbol_input(symbols):
     return sorted(list({i for i in symbols if i is not None}))
 
 
-def get_price_data(n_clicks, symbol, function, interval):
+def get_price_data(n_clicks, symbol, function, interval, no_api=False):
     """Get the data from main
     """
     if (('INTRADAY' in function) & (interval is None)) | \
@@ -114,7 +114,8 @@ def get_price_data(n_clicks, symbol, function, interval):
          'get_all': False,
          'no_return': False,
          'data_status': False,
-         'get_symbols': False})['prices']
+         'get_symbols': False,
+         'no_api': no_api})['prices']
 
 
 def create_indicators(data, function, indicators={1, 2, 3, 4, 5}):

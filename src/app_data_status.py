@@ -60,4 +60,5 @@ def get_data_status(n_clicks):
          'interval': None,
          'config': None,
          'get_symbols': None,
-         'data_status': True}).sort_values('symbol')
+         'data_status': True,
+         'no_api': False}).sort_values('symbol')
