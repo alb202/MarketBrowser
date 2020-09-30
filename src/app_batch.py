@@ -97,7 +97,7 @@ def generate_batch_symbol_input():
     """Generate the input for creating symbols
     """
     return dcc.Textarea(placeholder='Enter a symbol on each line ...',
-                        rows=6,
+                        rows=20,
                         cols=60,
                         value=None,
                         id='batch_input_symbol')
@@ -118,5 +118,6 @@ def get_batch_data(n_clicks, symbols, params):
          'get_all': params['get_all'],
          'no_return': True,
          'get_symbols': None,
-         'data_status': False})
+         'data_status': False,
+         'no_api': False})
     return False
