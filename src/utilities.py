@@ -73,6 +73,12 @@ def validate_args(args):
             & (not args['get_symbols']):
         log.info('At least one function or --get_all must be requested! Exiting ... ')
         sys.exit()
+    if args['symbol']:
+        try:
+            args['symbol'] = [i.upper().strip(' ') for i in args['symbol']]
+        except Exception as e:
+            log.warn('Error formatting symbols! Exiting ... ')
+            sys.exit()
     return args
 
 
@@ -103,12 +109,6 @@ def round_down(x, base=5):
     """
     return math.floor(x / base) * base
 
-
-# def set_column_dtypes(dataframe, dtypes):
-#     """Set the dtypes for the columns
-#     """
-#     log.info(f"Setting column dtypes: {str(dtypes)}")
-#     return {k: v for k, v in dtypes.items() if k in dataframe.columns}
 
 def convert_df_dtypes(df, dtypes):
     if type(dtypes) != dict:
