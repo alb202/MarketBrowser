@@ -57,7 +57,7 @@ def main(args):
                 interval_arg_list_ = [None]
             for interval_arg in interval_arg_list_:
                 last_update = data_status.get_last_update(
-                    symbol=symbol_arg,
+                    symbol=symbol_arg.upper(),
                     function=function_arg,
                     interval=interval_arg)
                 get_new_data = utilities.get_new_data_test(last_update,
@@ -68,7 +68,7 @@ def main(args):
                                    symbol=symbol_arg,
                                    interval=interval_arg)
                 query.get_local_data()
-                if get_new_data:
+                if get_new_data and not args['no_api']:
                     log.info('<<< Getting most recent time series data >>>')
                     query.get_remote_data(cfg=cfg)
 
@@ -83,8 +83,9 @@ def main(args):
                             symbol=symbol_arg,
                             function=function_arg,
                             interval=interval_arg)
-            log.info("<<< Saving data statuses to database >>>")
-            data_status.save_table(database=db_connection)
+            if not args['no_api']:
+                log.info("<<< Saving data statuses to database >>>")
+                data_status.save_table(database=db_connection)
 
     if args['no_return'] | \
             (not args['symbol']) | \
@@ -127,6 +128,8 @@ def parse_args():
                         help='Do not return the data')
     parser.add_argument('--data_status', action='store_true',
                         help='View the data status table')
+    parser.add_argument('--no_api', action='store_true',
+                        help="Don't get updated data from api - just get local data")
     parser.add_argument('--get_symbols', action='store_true',
                         help='Get all market symbols')
     parser.add_argument('--refresh', action='store_true',
