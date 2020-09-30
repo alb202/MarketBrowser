@@ -1,24 +1,25 @@
+import app_utilities
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
-from app_utilities import *
 from plotly.subplots import make_subplots
 from scipy.signal import find_peaks
 
 
 class Retracements:
 
-    def __init__(self, high, low, close, dates, function, peak_prominance=.04, peak_gap=12):
+    def __init__(self, high, low, close, dates, function, peak_prominance=.04, peak_gap=15):
         self.high = high.values
         self.low = low.values
         self.close = close.values
         self.xaxis = dates
         self.function = function
-        self.maxima, _ = find_peaks(x=self.high,
+        self.maxima, _ = find_peaks(x=self.close,
                                     distance=peak_gap,
-                                    prominence=peak_prominance * self.high)
-        self.minima, _ = find_peaks(x=(-1) * self.low,
+                                    prominence=peak_prominance * self.close)
+        self.minima, _ = find_peaks(x=(-1) * self.close,
                                     distance=peak_gap,
-                                    prominence=peak_prominance * self.low)
+                                    prominence=peak_prominance * self.close)
         self.peak_directions = np.array([0.] * len(dates))
         for i in self.maxima:
             self.peak_directions[i] = 1
@@ -33,7 +34,7 @@ class Retracements:
         self.retracement_coords = None
         self.retracement_indicies = None
 
-    def plot_peaks(self, trace_only=False):
+    def plot_peaks(self, trace_only=False, show_figure=True):
         peak_colors = np.where(self.peak_directions == 0, 'white',
                                np.where(self.peak_directions == 1, 'green', 'red'))
         peak_trace = dict(trace=go.Scatter(
@@ -50,7 +51,7 @@ class Retracements:
                 name='Price',
                 mode='lines',
                 showlegend=False,
-                x=self.axis,
+                x=self.xaxis,
                 marker_color='black',
                 y=self.close))
         fig = make_subplots(specs=[[{"secondary_y": False}]])
@@ -60,11 +61,12 @@ class Retracements:
                                title=f'Price peaks',
                                xaxis1=dict(type="date", rangeslider=dict(visible=False)),
                                yaxis1=dict(title=dict(text='Price peaks'))))
-        fig.update_xaxes(rangebreaks=make_rangebreaks(self.function))
-        fig.show()
+        fig.update_xaxes(rangebreaks=app_utilities.make_rangebreaks(self.function))
+        if show_figure:
+            fig.show()
         return fig
 
-    def get_retracements(self, low=.4, high=.6, peak_find_max=4, retrace_find_max=4):
+    def get_retracements(self, low=.4, high=.6, peak_find_max=6, retrace_find_max=6):
         peaks = [(i, j, k, l) for i, (j, k, l) in enumerate(
             zip(self.peak_directions[::-1],
                 self.peak_heights[::-1],
@@ -119,7 +121,8 @@ class Retracements:
 
     def plot_retracements(self, trace_only=False,
                           show_retracement=True,
-                          show_retracement_price=True):
+                          show_retracement_price=True,
+                          show_figure=True):
         if self.retracement_coords is None:
             self.get_retracements()
 
@@ -168,8 +171,9 @@ class Retracements:
                                title=f'50% Retracements',
                                xaxis1=dict(type="date", rangeslider=dict(visible=False)),
                                yaxis1=dict(title=dict(text='Retracements'))))
-        fig.update_xaxes(rangebreaks=make_rangebreaks(self.function))
-        fig.show()
+        fig.update_xaxes(rangebreaks=app_utilities.make_rangebreaks(self.function))
+        if show_figure:
+            fig.show()
         return fig
 #
 # #
