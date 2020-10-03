@@ -101,21 +101,24 @@ class TimeSeries():
             self.delete_dataframe_from_database(
                 self.local_data.obsolete_dividends, table='DIVIDEND')
 
-    def delete_dataframe_from_database(self, dataframe, table):
+    def delete_dataframe_from_database(self, df, table):
         """Delete a dataframe from the database using the current function table
         """
-        for index, row in dataframe.iterrows():
+        records = []
+        for index, row in df.iterrows():
             where = dict()
             where['symbol'] = row['symbol']
             where['datetime'] = row['datetime'].to_pydatetime()
-            if 'interval' in dataframe.columns:
+            if 'interval' in df.columns:
                 where['interval'] = row['interval']
-            if 'period' in dataframe.columns:
+            if 'period' in df.columns:
                 where['period'] = row['period']
-            values = {'table': table,
-                      'where': where}
-            log.info(f"Obsolete row: {str(values)}")
-            self.con.delete_record(values=values)
+            # values = {'table': table,
+            #           'where': where}
+            records.append(where)
+            log.info(f"Obsolete row: {str(where)}")
+        log.info(f'{str(len(records))} records ready for deletion from table {table}')
+        self.con.delete_records(records=records, table=table)
 
     def save_new_data(self, new_data, table):
         """Save the new data to the database table

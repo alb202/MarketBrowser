@@ -90,15 +90,27 @@ class Database:
         log.info(f"Updating table {table} in database")
         dataframe.to_sql(table, con=self.engine, if_exists=if_exists, index=False)
 
-    def delete_record(self, values):
-        """Update a specific value in a dataframe
+    # def delete_record(self, values):
+    #     """Delete row(s) in a dataframe
+    #     """
+    #     log.info(f"Deleting record in table {values['table']} "
+    #              f"where {str(values['where'])} from database")
+    #     session = self.Session()
+    #     sql = self.create_sql_for_deletion(values)
+    #     session.execute(sql)
+    #     session.commit()
+    #     session.close()
+
+    def delete_records(self, records, table):
+        """Delete specific row(s) in a dataframe
         """
-        log.info(f"Deleting record in table {values['table']} "
-                 f"where {str(values['where'])} from database")
         session = self.Session()
-        sql = self.create_sql_for_deletion(values)
-        session.execute(sql)
+        for where in records:
+            log.info(f"Deleting record in table {table} where {str(where)} from database")
+            session.execute(self.create_sql_for_deletion(dict(table=table, where=where)))
+        log.info(f"Committing changes to database")
         session.commit()
+        log.info(f"Closing connection to database")
         session.close()
 
     def get_record(self, values):
