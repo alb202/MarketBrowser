@@ -48,7 +48,7 @@ class AlphaVantage:
             try:
                 response = requests.get(self.PROXY_URL)
             except requests.exceptions.ConnectionError as e:
-                info.warn('Error getting proxies', e)
+                log.warn('Error getting proxies', e)
             else:
                 break
         proxies = []
@@ -90,7 +90,7 @@ class AlphaVantage:
                         filter(lambda x: x != "Meta Data",
                                raw_data.keys()))[0]]).transpose()
             except (IndexError) as e:
-                info.warn("Error, raw data not accessed: ", e)
+                log.warn("Error, raw data not accessed: ", e)
             else:
                 break
             if tries > 4:
