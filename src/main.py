@@ -34,10 +34,11 @@ def main(args):
     data_status.get_data_status(db_connection)
     if args['data_status']:
         return data_status.data
-    log.info('<<< Checking market status >>>')
-    market_time_info = market_time.MarketTime(cfg=cfg)
-    last_business_hours = market_time.BusinessHours(market_time_info)
-    last_market_time = last_business_hours.view_last_market_time()
+    if not args['no_api']:
+        log.info('<<< Checking market status >>>')
+        market_time_info = market_time.MarketTime(cfg=cfg)
+        last_business_hours = market_time.BusinessHours(market_time_info)
+        last_market_time = last_business_hours.view_last_market_time()
 
     if args['get_all']:
         function_arg_list = ["TIME_SERIES_INTRADAY",
@@ -56,12 +57,15 @@ def main(args):
             else:
                 interval_arg_list_ = [None]
             for interval_arg in interval_arg_list_:
-                last_update = data_status.get_last_update(
-                    symbol=symbol_arg.upper(),
-                    function=function_arg,
-                    interval=interval_arg)
-                get_new_data = utilities.get_new_data_test(last_update,
-                                                           last_market_time)
+                if not args['no_api']:
+                    last_update = data_status.get_last_update(
+                        symbol=symbol_arg.upper(),
+                        function=function_arg,
+                        interval=interval_arg)
+                    get_new_data = utilities.get_new_data_test(last_update,
+                                                               last_market_time)
+                else:
+                    get_new_data = False
                 log.info('<<< Getting timeseries data >>>')
                 query = TimeSeries(con=db_connection,
                                    function=function_arg,
@@ -83,9 +87,9 @@ def main(args):
                             symbol=symbol_arg,
                             function=function_arg,
                             interval=interval_arg)
-            if not args['no_api']:
-                log.info("<<< Saving data statuses to database >>>")
-                data_status.save_table(database=db_connection)
+                    # if get_new_data and not args['no_api']:
+                    log.info("<<< Saving data statuses to database >>>")
+                    data_status.save_table(database=db_connection)
 
     if args['no_return'] | \
             (not args['symbol']) | \
