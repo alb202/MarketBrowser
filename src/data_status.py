@@ -69,4 +69,4 @@ class DataStatus:
         """Save the data status dataframe to a table
         """
         log.info("Saving data status table to datebase")
-        database.update_table(self.data, "DATA_STATUS", "replace")
+        database.update_table(self.data.drop_duplicates(), "DATA_STATUS", "replace")
