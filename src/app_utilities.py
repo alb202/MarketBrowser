@@ -140,13 +140,11 @@ def create_indicators(data, function, indicators={1, 2, 3, 4, 5}):
         _ha = HeikinAshi(data=data.loc[:, ['datetime', 'open', 'high', 'low', 'close']], function=function)
         _ha_df = _ha.table()
 
-        ha_data_mac = _ha_df[['ha_close']].reset_index(drop=False)
-        ha_data_maz = _ha_df[['ha_open', 'ha_close']].reset_index(drop=False)
-        ha_data_mac.columns = ['datetime', 'close']
-        ha_data_maz.columns = ['datetime', 'open', 'close']
+        ha_data_ma = _ha_df[['ha_open', 'ha_close']].reset_index(drop=False)
+        ha_data_ma.columns = ['datetime', 'open', 'close']
 
         if 3 in indicators:
-            _mac = MovingAverageCrossover(data=ha_data_mac,
+            _mac = MovingAverageCrossover(data=ha_data_ma.loc[:, ['datetime', 'close']],
                                           function=function,
                                           ma1_period=10,
                                           ma2_period=20)
@@ -154,9 +152,9 @@ def create_indicators(data, function, indicators={1, 2, 3, 4, 5}):
             results = results.join(_mac_df, how='outer')
 
         if 4 in indicators:
-            _maz = MovingAverageZone(datetime=ha_data_maz['datetime'],
-                                     open=ha_data_maz['open'],
-                                     close=ha_data_maz['close'],
+            _maz = MovingAverageZone(datetime=ha_data_ma['datetime'],
+                                     open=ha_data_ma['open'],
+                                     close=ha_data_ma['close'],
                                      function=function)
             _maz_df = _maz.table()
             results = results.join(_maz_df, how='outer')
