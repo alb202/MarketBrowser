@@ -1,10 +1,10 @@
-import dash_core_components as dcc
 import copy
 import datetime
 import os
 
 import dash_core_components as dcc
 import main
+import numpy as np
 import pandas as pd
 from app_utilities import *
 from dash.dependencies import Output, Input, State
@@ -105,7 +105,7 @@ def check_dir_exists(dir):
 def save_indicator_figure(fig):
     check_dir_exists("../downloads")
     now = str(datetime.datetime.now().strftime("%d_%m_%Y__%H_%M_%S"))
-    fig.write_image('../downloads/indicator_figure_' + now + '.jpg')
+    fig.write_image('../downloads/indicator_figure_' + now + '.png')
 
 
 def generate_screener_symbol_input():
@@ -118,7 +118,7 @@ def generate_screener_symbol_input():
                         id='screener_input_symbol')
 
 
-def screener_plots(dfs=[]):
+def screener_plots(dfs={}):
     """Generate the input for creating symbols
     """
     if not dfs:
@@ -130,30 +130,65 @@ def screener_plots(dfs=[]):
     data_list = [(key, value) for key, value in dfs.items()]
     data_list = sorted(data_list, reverse=True, key=lambda x: (x[1].iloc[0, :].sum(),
                                                                x[1].iloc[1, :].sum(),
-                                                               x[1].iloc[2, :].sum()))  # ,
-    # x[1].iloc[3, :].sum(),
-    # x[1].iloc[4, :].sum()))
-    subplot_titles = [i[0] for i in data_list]
-    data_list = [i[1] for i in data_list]
+                                                               x[1].iloc[2, :].sum()))
+    # if len(data_list) % 2 == 1:
+    #     data_list.append(('', pd.DataFrame({})))
+    number_of_plots = len(data_list)
+    subplot_cols = int(np.ceil(number_of_plots / 50))
+    subplot_rows = int(np.ceil(number_of_plots / subplot_cols))
 
-    fig = make_subplots(rows=len(dfs), cols=1,
-                        row_heights=[100] * len(dfs),
+    # subplot_cols = int(np.around(len(data_list) / 50)) if len(data_list) > 50 else int(1)
+    print('subplot_cols', subplot_cols)
+    # subplot_rows = int(len(data_list) / subplot_cols)
+    print('subplot_rows', subplot_rows)
+    subplot_titles = [i[0] for i in data_list]
+    # print('subplot_titles',  subplot_titles)
+    data_list = [i[1] for i in data_list]
+    rows_heights = [100] * subplot_rows
+    print('rows_heights', rows_heights)
+    fig = make_subplots(rows=subplot_rows, cols=subplot_cols,
+                        row_heights=rows_heights,
                         shared_xaxes=True,
                         subplot_titles=subplot_titles)
+    fig_width = 600 * subplot_cols
+    fig_height = 40 * len(data_list[0].columns) * subplot_rows
+    print('fig_width: ', fig_width)
+    print('fig_height: ', fig_height)
     fig.update_layout(
-        width=800,
-        height=(60 * len(data_list[0].columns)) * len(dfs))
+        width=fig_width,
+        height=fig_height)
     fig.update(layout_showlegend=False)
     fig.update(layout_coloraxis_showscale=False)
 
-    for i, df in enumerate(data_list):
-        df = df.fillna(0).head(200)
-        hm = go.Heatmap(
-            {'z': df.transpose().values.tolist(),
-             'y': df.columns.tolist(),
-             'x': df.index.tolist()},
-            colorscale=cs, showscale=False, xgap=1, ygap=1, zmin=-1, zmax=1)
-        fig.append_trace(hm, row=i + 1, col=1)
+    for row in range(1, subplot_rows + 1):
+        for col in range(1, subplot_cols + 1):
+            df = data_list.pop(0)
+            df = df.fillna(0).head(200)
+            hm = go.Heatmap(
+                {'z': df.transpose().values.tolist(),
+                 'y': df.columns.tolist(),
+                 'x': df.index.tolist()},
+                # title=dict(text=),
+                colorscale=cs, showscale=False,
+                xgap=1, ygap=1, zmin=-1, zmax=1)
+            fig.append_trace(hm, row=row, col=col)
+            # fig.update_
+            # fig.update_layout(
+            #     annotations=[
+            #         dict(
+            #             x=2, y=2,  # annotation point
+            #             xref='x1',
+            #             yref='y1',
+            #             text='dict Text',
+            #             showarrow=True,
+            #             arrowhead=7,
+            #             ax=10,
+            #             ay=70
+            #         )
+            if not data_list:
+                break
+        if not data_list:
+            break
     fig.layout.coloraxis.showscale = False
     save_indicator_figure(fig)
     return fig
