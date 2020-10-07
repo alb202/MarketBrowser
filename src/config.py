@@ -2,6 +2,7 @@
 """
 
 import datetime as dt
+import random
 import sys
 
 import logger
@@ -65,13 +66,13 @@ class Config:
         return self._config['stock_api_url']
 
     def view_price_apikey(self):
-        return self._price_key
+        return random.sample(self._price_key, len(self._price_key))
 
     def view_price_apikey_path(self):
         return "../" + self._config['price_api_key_path']
 
     def view_stock_apikey(self):
-        return self._stock_key
+        return random.sample(self._stock_key, len(self._stock_key))
 
     def view_stock_apikey_path(self):
         return "../" + self._config['stock_api_key_path']
