@@ -84,11 +84,12 @@ def round_float_columns(data, digits=2):
 
 def process_symbol_input(symbols):
     symbols = [i.strip(' ').upper() for i in symbols
-        .replace('\n', '')
+        .replace('\n', ' ')
         .replace(',', ' ')
         .replace(';', ' ')
         .strip(' ')
         .split(' ')]
+    symbols = [i for i in symbols if i != '']
     return sorted(list({i for i in symbols if i is not None}))
 
 
