@@ -2,6 +2,7 @@ import dash_table
 import main
 import numpy as np
 import pandas as pd
+from app_data_status import get_data_status
 from dash.dependencies import Output, Input, State
 from dash_table.Format import Format
 
@@ -28,19 +29,19 @@ def register_market_symbol_callbacks(app):
                    Output('get_selected_symbols', 'disabled'),
                    Output('market_symbol_loading_indicator', 'hidden')],
                   [Input('view_market_symbols', 'n_clicks')],
-                  [State('refresh_market_symbols', 'value')])
-    def create_market_symbol_table(n_clicks, refresh_market_symbols):
+                  [State('view_tracked_symbols', 'value'),
+                   State('refresh_market_symbols', 'value')])
+    def create_market_symbol_table(n_clicks, view_tracked_only, refresh_market_symbols):
         """Begin plotting the price data
         """
         refresh_market_symbols = True if 'yes' in refresh_market_symbols else False
         symbol_table_data = get_market_symbols(n_clicks=n_clicks, refresh=refresh_market_symbols)
-        return [symbol_table_data.to_dict(orient='records'), np.arange(len(symbol_table_data)),
+        if view_tracked_only:
+            data_status = get_data_status(n_clicks)[['symbol']].drop_duplicates().reset_index(drop=True)
+            symbol_table_data = symbol_table_data.merge(data_status, how='inner', on='symbol')
+        return [symbol_table_data.to_dict(orient='records'),
+                np.arange(len(symbol_table_data)),
                 n_clicks == 0, n_clicks == 0]
-
-def get_selected_rows():
-    # indicies = market_symbol
-    pass
-
 
 def generate_market_symbol_table():
     """Generate the input for creating symbols

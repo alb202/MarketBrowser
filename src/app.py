@@ -88,7 +88,14 @@ MarketSymbolsTab = dcc.Tab(label="Market Symbols", children=[
         dbc.CardBody(children=[
             dbc.Row(no_gutters=False, justify='center', align='baseline', children=[
                 dbc.Col(width=True, children=[
-                    dbc.Button('View all symbols ...', id='view_market_symbols', n_clicks=0)]),
+                    dbc.Row(justify='center', align='baseline', children=[
+                        dbc.Button('View market symbols ...', id='view_market_symbols', n_clicks=0),
+                        dbc.Checklist(id='view_tracked_symbols', options=[
+                            {'label': 'Only view tracked symbols',
+                             'value': True}],
+                                      value=[],
+                                      inline=False,
+                                      switch=True)])]),
                 dbc.Col(width=True, children=[
                     dbc.Checklist(id='refresh_market_symbols', options=[
                         {'label': 'Refresh (Warning - This takes several hours)',
