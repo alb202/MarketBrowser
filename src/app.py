@@ -34,6 +34,13 @@ MarketBrowserTab = dcc.Tab(label='MarketBrowser', children=[
                     dbc.Row(align='baseline', no_gutters=False, justify='start', children=[
                         dbc.Col(children=[
                             dbc.Button(children=['View plot ...'], id='submit_val', n_clicks=0)]),
+                        dbc.Col(children=[
+                            dbc.Checklist(id='update_graph_data', options=[
+                                {'label': 'Update data',
+                                 'value': 'yes'}],
+                                          value=[],
+                                          inline=False,
+                                          switch=True)]),
                         dbc.Col(generate_symbol_input()),
                         dbc.Col(generate_function_dropdown()),
                         dbc.Col(generate_interval_dropdown()),

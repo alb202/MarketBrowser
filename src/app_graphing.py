@@ -26,24 +26,28 @@ def register_graphing_callbacks(app):
                   [State('input_symbol', 'value'),
                    State('input_function', 'value'),
                    State('input_interval', 'value'),
-                   State('show_dividends', 'value')])
-    def begin_plotting(n_clicks, input_symbol, input_function, input_interval, show_dividends):
+                   State('show_dividends', 'value'),
+                   State('update_graph_data', 'value')])
+    def begin_plotting(n_clicks, input_symbol, input_function, input_interval, show_dividends, update_graph_data):
         """Begin plotting the price data
         """
         if "INTRADAY" not in input_function:
             input_interval = None
-        stock_data = get_data(n_clicks, input_symbol, input_function, input_interval)
+        stock_data = get_data(n_clicks=n_clicks,
+                              symbol=input_symbol,
+                              function=input_function,
+                              interval=input_interval,
+                              no_api=False if 'yes' in update_graph_data else True)
 
         params = dict(
             show_dividends=show_dividends,
             nrows=4, ncols=1,
-            # nrows=5, ncols=1,
             row_heights=[.50, .1, .2, .2],
-            # row_heights=[.22, .12, .22, .22, .22],
             vertical_spacing=.02)
-        return [create_main_graph(data=stock_data, symbol=input_symbol,
-                                  function=input_function, params=params),
-                n_clicks == 0]
+        return [create_main_graph(data=stock_data,
+                                  symbol=input_symbol,
+                                  function=input_function,
+                                  params=params), n_clicks == 0]
 
 
 def generate_symbol_input():
@@ -96,7 +100,7 @@ def generate_plot():
     return dcc.Graph(id='time_series_plot')
 
 
-def get_data(n_clicks, symbol, function, interval):
+def get_data(n_clicks, symbol, function, interval, no_api):
     """Get the data from main
     """
     if (('INTRADAY' in function) & (interval is None)) | \
@@ -121,7 +125,8 @@ def get_data(n_clicks, symbol, function, interval):
          'get_all': False,
          'no_return': False,
          'data_status': False,
-         'get_symbols': False})
+         'get_symbols': False,
+         'no_api': no_api})
 
 
 
