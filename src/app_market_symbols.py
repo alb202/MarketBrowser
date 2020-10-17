@@ -1,10 +1,10 @@
 import dash_table
-import main
 import numpy as np
 import pandas as pd
-from app_data_status import get_data_status
 from dash.dependencies import Output, Input, State
 from dash_table.Format import Format
+
+import main
 
 # from dash_table.Format import Format
 
@@ -35,10 +35,13 @@ def register_market_symbol_callbacks(app):
         """Begin plotting the price data
         """
         refresh_market_symbols = True if 'yes' in refresh_market_symbols else False
-        symbol_table_data = get_market_symbols(n_clicks=n_clicks, refresh=refresh_market_symbols)
-        if view_tracked_only:
-            data_status = get_data_status(n_clicks)[['symbol']].drop_duplicates().reset_index(drop=True)
-            symbol_table_data = symbol_table_data.merge(data_status, how='inner', on='symbol')
+        # view_tracked_only = True if refresh_market_symbols else False
+        symbol_table_data = get_market_symbols(n_clicks=n_clicks,
+                                               refresh=refresh_market_symbols,
+                                               view_tracked_only=view_tracked_only)
+        # if view_tracked_only:
+        #     data_status = get_data_status(n_clicks)[['symbol']].drop_duplicates().reset_index(drop=True)
+        #     symbol_table_data = symbol_table_data.merge(data_status, how='inner', on='symbol')
         return [symbol_table_data.to_dict(orient='records'),
                 np.arange(len(symbol_table_data)),
                 n_clicks == 0, n_clicks == 0]
@@ -70,7 +73,7 @@ def generate_market_symbol_table():
                       'fontWeight': 'bold', 'textAlign': 'center'})
 
 
-def get_market_symbols(n_clicks, refresh):
+def get_market_symbols(n_clicks, refresh, view_tracked_only=False):
     """Get the data from main
     """
     if (n_clicks == 0):
@@ -85,4 +88,5 @@ def get_market_symbols(n_clicks, refresh):
          'get_symbols': True,
          'refresh': refresh,
          'no_return': None,
-         'data_status': None})
+         'data_status': None,
+         'only_tracked': view_tracked_only})

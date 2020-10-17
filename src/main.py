@@ -26,14 +26,19 @@ def main(args):
     log.info('<<< Creating database connection >>>')
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
-    if args['get_symbols']:
-        symbols = MarketSymbols(con=db_connection, cfg=cfg, refresh=args['refresh'])
-        return symbols.show_all()
     log.info('<<< Loading data status >>>')
     data_status = DataStatus(cfg)
     data_status.get_data_status(db_connection)
     if args['data_status']:
         return data_status.data
+
+    if args['get_symbols']:
+        symbols = MarketSymbols(con=db_connection, cfg=cfg, refresh=args['refresh']).show_all()
+        if args['only_tracked']:
+            data_status = data_status.data.loc[:, ['symbol']].drop_duplicates().reset_index(drop=True)
+            symbols = symbols.merge(data_status, how='inner', on='symbol')
+        return symbols
+
     if not args['no_api']:
         log.info('<<< Checking market status >>>')
         market_time_info = market_time.MarketTime(cfg=cfg)
@@ -138,6 +143,8 @@ def parse_args():
                         help='Get all market symbols')
     parser.add_argument('--refresh', action='store_true',
                         help='Update the market symbols from the API')
+    parser.add_argument('--only_tracked', action='store_true',
+                        help='Only view market symbols that are tracked')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
     return utilities.validate_args(args)
