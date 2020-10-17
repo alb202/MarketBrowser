@@ -1,10 +1,10 @@
 import re
 from itertools import cycle
 
-import logger
 import numpy as np
 import pandas as pd
 import requests
+
 from utilities import *
 
 log = logger.get_logger(__name__)
@@ -14,6 +14,7 @@ class AlphaVantage:
     AV_URL = 'https://www.alphavantage.co:443/query?'
     ERR_KEY = 'Error Message'
     NOTE_KEY = 'Note'
+    INFO_KEY = 'Information'
     # PROXY_URL = 'https://www.us-proxy.org'
     # PROXY_URL = 'https://free-proxy-list.net/'
     PROXY_URL = 'https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=250&country=all&ssl=all&anonymity=all'
@@ -141,9 +142,11 @@ class AlphaVantage:
             if tries == 0:
                 proxies = None
             else:
+                if tries > 20:
+                    proxy_pool = cycle(self.get_proxy_list())
+                    tries = 0
                 next_proxy = next(proxy_pool)
-                proxies = {'http': next_proxy,
-                           'https': next_proxy}
+                proxies = {'http': next_proxy, 'https': next_proxy}
             api_parameters['apikey'] = next(api_keys)
             print('Using key: ', api_parameters['apikey'])
             print('Using proxy: ', proxies)
@@ -167,6 +170,10 @@ class AlphaVantage:
                     elif self.NOTE_KEY in raw_data.keys():
                         msg = raw_data[self.NOTE_KEY]
                         print('NOTE_KEY is in json')
+                        print(msg)
+                    elif self.INFO_KEY in raw_data.keys():
+                        msg = raw_data[self.INFO_KEY]
+                        print('INFO KEY is in json')
                         print(msg)
                     else:
                         log.info(f"API call successful: {symbol} {function} {interval} ...")
