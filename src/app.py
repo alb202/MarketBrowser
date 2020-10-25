@@ -4,10 +4,8 @@ Module running the Dash app
 
 """
 
-import dash
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
 import dash_html_components as html
+
 from app_batch import *
 from app_data_status import *
 from app_graphing import *
@@ -224,8 +222,9 @@ MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
                                                         {"label": "RSI Crossover", "value": 2},
                                                         {"label": "Moving Average Crossover", "value": 3},
                                                         {"label": "Moving Average Zone", "value": 4},
-                                                        {"label": "50% Retracement", "value": 5}],
-                                                    value=[1, 2, 3, 4, 5],
+                                                        {"label": "50% Retracement", "value": 5},
+                                                        {"label": "Moving Average Change", "value": 6}],
+                                                    value=[1, 2, 3, 4, 5, 6],
                                                     id="screener_indicator_options",
                                                     inline=False,
                                                     switch=True)])])])])]),

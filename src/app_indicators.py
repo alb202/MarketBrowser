@@ -1,8 +1,10 @@
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
 import dash_table
-from app_utilities import *
 from dash.dependencies import Output, Input, State
+
+from app_utilities import *
+from indicators import create_indicator_table
 
 
 def register_indicator_callbacks(app):
@@ -28,7 +30,7 @@ def register_indicator_callbacks(app):
         if "INTRADAY" not in input_function:
             input_interval = None
         print("Begin plotting ..........")
-        indicator_data = create_indicators(
+        indicator_data = create_indicator_table(
             data=get_price_data(n_clicks,
                                 input_symbol,
                                 input_function,
@@ -81,6 +83,10 @@ def generate_indicator_table():
                          'backgroundColor': on_color, 'color': 'black'}
     maz_indicator__off = {'if': {'filter_query': '{maz_indicator} < 0', 'column_id': 'maz_indicator'},
                           'backgroundColor': off_color, 'color': 'black'}
+    machange_indicator__on = {'if': {'filter_query': '{ma_indicator} > 0', 'column_id': 'ma_indicator'},
+                              'backgroundColor': on_color, 'color': 'black'}
+    machange_indicator__off = {'if': {'filter_query': '{ma_indicator} < 0', 'column_id': 'ma_indicator'},
+                               'backgroundColor': off_color, 'color': 'black'}
     retracements__on = {'if': {'filter_query': '{retracements} > 0', 'column_id': 'retracements'},
                         'backgroundColor': on_color, 'color': 'black'}
 
@@ -95,6 +101,7 @@ def generate_indicator_table():
                                     mac_positive__on, mac_positive__off,
                                     mac_indicator__on, mac_indicator__off,
                                     maz_indicator__on, maz_indicator__off,
+                                    machange_indicator__on, machange_indicator__on,
                                     retracements__on])
 
 

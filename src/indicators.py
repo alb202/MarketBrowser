@@ -1,10 +1,9 @@
 from abc import ABC
 
-import numpy as np
-import pandas as pd
-import plotly.graph_objects as go
-from app_utilities import *
 from plotly.subplots import make_subplots
+
+from app_utilities import *
+from app_utilities import make_rangebreaks
 
 
 class MovingAverages(ABC):
@@ -323,12 +322,6 @@ class MovingAverageCrossover(MovingAverages):
 
 class MovingAverageZone(MovingAverages):
     def __init__(self, datetime, open, close, function, ma1_type='sma', ma2_type='sma', ma1_period=5, ma2_period=30):
-        # if len(data.columns) != 3:
-        #     print("Timeseries must have exactly 1 data column and 1 date column! Exiting.")
-        #     exit()
-        # if 'datetime' not in data.columns:
-        #     print("Timeseries must have datetime column! Exiting.")
-        #     exit()
         self.function = function
         self.params = dict(
             ma1_type=ma1_type, ma1_period=ma1_period,
@@ -354,10 +347,6 @@ class MovingAverageZone(MovingAverages):
             trend_up.replace({True: 1, False: 0}))
 
     def table(self):
-        # print('xaxis', len(self.xaxis), type(self.xaxis))
-        # print('indicator', len(self.indicator), type(self.indicator))
-        # print('ma1', len(self.ma1), type(self.ma1))
-        # print('ma2', len(self.ma2), type(self.ma2))
         return pd.DataFrame.from_dict(
             orient='columns',
             data={'datetime': pd.Series(self.xaxis),
@@ -398,24 +387,139 @@ class MovingAverageZone(MovingAverages):
         fig.show()
         return fig
 
-#
+
+class MAChange(MovingAverages):
+    def __init__(self, datetime, close, function, ma_type='ema', period=8, change=1):
+        self.function = function
+        self.period = period
+        self.ma_type = ma_type
+        self.change = change
+        self.xaxis = datetime
+        self.close = close
+        if self.ma_type == 'sma':
+            self.ma = self.simple_moving_average(ts=self.close, period=period)
+        else:
+            self.ma = self.exponential_moving_average(ts=self.close, period=period)
+        self.ma_shift = self.ma.shift(change)
+        self.trend = self.ma > self.ma_shift
+        self.indicator = np.where(self.trend, 1, -1)
+
+    def table(self):
+        return pd.DataFrame.from_dict(
+            orient='columns',
+            data={'datetime': pd.Series(self.xaxis),
+                  'ma_indicator': pd.Series(self.indicator),
+                  'ma': self.ma,
+                  'ma_previous': self.ma_shift}).set_index('datetime')
+
+    def plot_MAChange(self, trace_only=False):
+        indicator_color = self.indicator
+        indicator_color = np.where(indicator_color == 1, 'green', 'red')
+        MA_change = dict(
+            trace=go.Scatter(
+                name='Moving Average Change', mode='markers',
+                showlegend=False,
+                x=self.xaxis,
+                marker_color=indicator_color,
+                y=self.close * .85))
+
+        if trace_only:
+            return dict(indicator=MA_change)  # , ma1=ma1_trace, ma2=ma2_trace)
+        fig = make_subplots(specs=[[{"secondary_y": False}]])
+        fig.add_trace(row=1, col=1, secondary_y=False, **MA_change)
+        fig.update_layout(dict(width=1200, height=500,
+                               title=f'Moving Average Change ({self.ma_type} {self.period} {self.change})',
+                               xaxis1=dict(type="date", rangeslider=dict(visible=False)),
+                               yaxis1=dict(title=dict(text='Moving Averages'))))
+        fig.update_xaxes(rangebreaks=make_rangebreaks(self.function))
+        fig.show()
+        return fig
+
+
+def create_indicator_table(data, function, indicators={1, 2, 3, 4, 5, 6}):
+    """Calculate the indicators for the table
+    """
+    if (len(data) == 0) | (len(indicators) == 0):
+        return pd.DataFrame.from_dict({i: [] for i in ['datetime']}, orient='columns')
+
+    results = data.loc[:, ['datetime', 'open', 'high', 'low', 'close']].set_index('datetime')
+
+    if 1 in indicators:
+        _macd = MACD(data=data.loc[:, ['datetime', 'close']], function=function)
+        _macd_df = _macd.table()
+        results = results.join(_macd_df, how='outer')
+
+    if 2 in indicators:
+        _rsi = RSI(data=data.loc[:, ['datetime', 'close']], function=function)
+        _rsi_df = _rsi.table()
+        results = results.join(_rsi_df, how='outer')
+
+    if len({3, 4, 5}.intersection(indicators)) > 0:
+        _ha = HeikinAshi(data=data.loc[:, ['datetime', 'open', 'high', 'low', 'close']], function=function)
+        _ha_df = _ha.table()
+
+        ha_data_ma = _ha_df[['ha_open', 'ha_close']].reset_index(drop=False)
+        ha_data_ma.columns = ['datetime', 'open', 'close']
+
+        if 3 in indicators:
+            _mac = MovingAverageCrossover(data=ha_data_ma.loc[:, ['datetime', 'close']],
+                                          function=function,
+                                          ma1_period=10,
+                                          ma2_period=20)
+            _mac_df = _mac.table()
+            results = results.join(_mac_df, how='outer')
+
+        if 4 in indicators:
+            _maz = MovingAverageZone(datetime=ha_data_ma['datetime'],
+                                     open=ha_data_ma['open'],
+                                     close=ha_data_ma['close'],
+                                     function=function)
+            _maz_df = _maz.table()
+            results = results.join(_maz_df, how='outer')
+
+        if 6 in indicators:
+            _ma_change = MAChange(datetime=ha_data_ma['datetime'],
+                                  close=ha_data_ma['close'],
+                                  function=function,
+                                  ma_type='ema',
+                                  period=8,
+                                  change=1)
+            _ma_change_df = _ma_change.table()
+            results = results.join(_ma_change_df, how='outer')
+
+        if 5 in indicators:
+            _retrace = Retracements(high=data['high'],
+                                    low=data['low'],
+                                    close=data['close'],
+                                    dates=data['datetime'],
+                                    function=function)
+            _retrace.get_retracements(low=.38, high=.6)
+            _retrace_df = _retrace.table()
+            results = results.join(_retrace_df, how='outer')
+
+    results = round_float_columns(data=results, digits=2)
+
+    return results.reset_index(drop=False).sort_values('datetime', ascending=False)
+
 #
 # #
 # #
 # # #
+# # #
+# # # #
 # from config import Config
 # # from data_status import DataStatus
 # from database import Database
 # # from market_symbols import MarketSymbols
 # from timeseries import TimeSeries
-# #
+# from app_utilities import make_rangebreaks
 # # #
 # cfg = Config("../resources/config.txt")
 # db_connection = Database(cfg.view_db_location())
 # db_connection.check_database()
 # #
 # the_function = 'TIME_SERIES_DAILY_ADJUSTED'
-# the_interval = None#'30min#
+# the_interval = None
 # the_symbol = 'SPY'
 #
 # query = TimeSeries(con=db_connection,
@@ -424,46 +528,56 @@ class MovingAverageZone(MovingAverages):
 #                    interval=the_interval)
 # query.get_local_data()
 # price_data = query.view_data()['prices'].loc[:, ['datetime', 'close', 'open', 'high', 'low']]
-# # print(price_data)
-# #
-# # new_macd = MACD(
-# #     data=price_data[['datetime', 'close']],
-# #     function=the_function)
-# #
-# # # print(new_macd.__dict__['rate_of_change'])
-# # # new_macd.plot_macd(trace_only=False)
+# print(price_data)
 # # #
-# # new_rsi = RSI(
-# #     data=price_data[['datetime', 'close']],
-# #     function=the_function,
-# #     period=14)
-# # # new_rsi.plot_rsi()
-# # # # print(new_rsi.__dict__['rsi_line'])
+# # # new_macd = MACD(
+# # #     data=price_data[['datetime', 'close']],
+# # #     function=the_function)
 # # #
-# # new_ha = HeikinAshi(function=the_function, data=price_data)
-# # # c = new_ha.ha_indicator()
+# # # # print(new_macd.__dict__['rate_of_change'])
+# # # # new_macd.plot_macd(trace_only=False)
+# # # #
+# # # new_rsi = RSI(
+# # #     data=price_data[['datetime', 'close']],
+# # #     function=the_function,
+# # #     period=14)
+# # # # new_rsi.plot_rsi()
+# # # # # print(new_rsi.__dict__['rsi_line'])
+# # # #
+# new_ha = HeikinAshi(function=the_function, data=price_data)
+# # c = new_ha.ha_indicator()
 # # # print(len(c))
-# # # print(c)
-# # # new_ha.plot_ha()
-# # # # a = new_ha.get_values()
-# # # # print((a['open'] > a['close']) | (a['open'] < a['close']))
-# # #
-# # new_ma = MovingAverageCrossover(function=the_function,
-# #                                 data=price_data[['datetime', 'close']], ma1_period=10, ma2_period=20)
+# # # # print(c)
+# # # # new_ha.plot_ha()
+# # # # # a = new_ha.get_values()
+# # # # # print((a['open'] > a['close']) | (a['open'] < a['close']))
+# # # #
+# # # new_ma = MovingAverageCrossover(function=the_function,
+# # #                                 data=price_data[['datetime', 'close']], ma1_period=10, ma2_period=20)
+# # # # print(new_ma.get_indicator().query("indicator == 1"))
+# # # # d = new_ma.plot_MAC(trace_only=True)
+# # # # print(d)
+# # # new_ma.plot_MAC(trace_only=False)
+#
+# new_machange = MAChange(
+#     datetime=price_data.datetime,
+#     close=price_data.close,
+#     function=the_function,
+#     ma_type='ema',
+#     period=8,
+#     change=1)
+# q = new_machange.table()
+# print(q)
+# d = new_machange.plot_MAChange(trace_only=False)
+# print(d)
+# #
+# # new_maz = MovingAverageZone(
+# #     function=the_function,
+# #     datetime=price_data.datetime,
+# #     open=price_data.open,
+# #     close=price_data.close,
+# #     ma1_period=5, ma2_period=30)
 # # # print(new_ma.get_indicator().query("indicator == 1"))
 # # # d = new_ma.plot_MAC(trace_only=True)
 # # # print(d)
-# # new_ma.plot_MAC(trace_only=False)
-#
-#
-# #
-# new_maz = MovingAverageZone(
-#     function=the_function,
-#     datetime=price_data.datetime,
-#     open=price_data.open,
-#     close=price_data.close,
-#     ma1_period=5, ma2_period=30)
-# # print(new_ma.get_indicator().query("indicator == 1"))
-# # d = new_ma.plot_MAC(trace_only=True)
-# # print(d)
-# new_maz.plot_MAZ(trace_only=False)
+# # new_maz.plot_MAZ(trace_only=False)

@@ -1,15 +1,11 @@
 import copy
-import datetime
 import os
+from functools import reduce
 
 import dash_core_components as dcc
-import main
-import numpy as np
-import pandas as pd
-from app_utilities import *
 from dash.dependencies import Output, Input, State
+
 from indicators import *
-from plotly.subplots import make_subplots
 from retracements import *
 
 
@@ -59,7 +55,7 @@ def register_screener_callbacks(app):
 
         indicator_dict = dict()
         for symbol in symbols:
-            indicator_data = create_indicators(
+            indicator_data = create_indicator_table(
                 data=get_price_data(n_clicks=n_clicks,
                                     symbol=symbol,
                                     function=function,
@@ -74,6 +70,7 @@ def register_screener_callbacks(app):
                             'rsi_crossover',
                             'mac_indicator',
                             'maz_indicator',
+                            'ma_indicator',
                             'retracements']
             indicator_data = indicator_data.set_index(['datetime'])
             indicator_data = indicator_data.loc[:, [col for col in indicator_data.columns if col in plot_columns]]
@@ -89,12 +86,22 @@ def register_screener_callbacks(app):
 def save_indicator_data(dfs):
     check_dir_exists("../downloads")
     all_dfs = []
+    levels = ['symbol', 'indicator']
     now = str(datetime.datetime.now().strftime("%d_%m_%Y__%H_%M_%S"))
     for symbol, df in dfs.items():
-        df['symbol'] = symbol
+        df.columns = [col + '__' + symbol for col in df.columns]
         all_dfs.append(df.head(200))
-    pd.concat(all_dfs).fillna(0).reset_index(drop=False) \
-        .to_csv(path_or_buf='../downloads/indicators_' + now + '.csv', sep='\t', index=False)
+    final_df = reduce(lambda x, y: pd.merge(x, y, on='datetime', how='outer'), all_dfs).fillna(0)
+    final_df = final_df.transpose()
+    symbols = [i.split('__')[1] for i in final_df.index]
+    final_df.index = [i.split('__')[0] for i in final_df.index]
+    final_df['symbol'] = symbols
+    final_df = final_df.reset_index(drop=False) \
+        .rename(columns={'index': 'indicator'}) \
+        .set_index(['symbol', 'indicator'])
+    final_df.to_csv(path_or_buf='../downloads/indicators_' + now + '.csv', sep=',', index=True)
+    # pd.concat(all_dfs).fillna(0).reset_index(drop=False) \
+    #     .to_csv(path_or_buf='../downloads/indicators_' + now + '.csv', sep=',', index=False)
 
 
 def check_dir_exists(dir):
@@ -130,7 +137,9 @@ def screener_plots(dfs={}):
     data_list = [(key, value) for key, value in dfs.items()]
     data_list = sorted(data_list, reverse=True, key=lambda x: (x[1].iloc[0, :].sum(),
                                                                x[1].iloc[1, :].sum(),
-                                                               x[1].iloc[2, :].sum()))
+                                                               x[1].iloc[3, :].sum(),
+                                                               x[1].iloc[4, :].sum(),
+                                                               x[1].iloc[5, :].sum()))
     # if len(data_list) % 2 == 1:
     #     data_list.append(('', pd.DataFrame({})))
     number_of_plots = len(data_list)

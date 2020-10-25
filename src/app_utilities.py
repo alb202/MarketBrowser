@@ -1,9 +1,9 @@
-import datetime as datetime
+import datetime
+
+# from indicators import *
+from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
 
 import main
-import pandas as pd
-from indicators import *
-from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
 from retracements import *
 
 USFEDHOLIDAYS = USFederalHolidayCalendar()
@@ -87,6 +87,8 @@ def process_symbol_input(symbols):
         .replace('\n', ' ')
         .replace(',', ' ')
         .replace(';', ' ')
+        .replace("'", ' ')
+        .replace('"', ' ')
         .strip(' ')
         .split(' ')]
     symbols = [i for i in symbols if i != '']
@@ -117,59 +119,3 @@ def get_price_data(n_clicks, symbol, function, interval, no_api=False):
          'data_status': False,
          'get_symbols': False,
          'no_api': no_api})['prices']
-
-
-def create_indicators(data, function, indicators={1, 2, 3, 4, 5}):
-    """Calculate the indicators for the table
-    """
-    if (len(data) == 0) | (len(indicators) == 0):
-        return pd.DataFrame.from_dict({i: [] for i in ['datetime']}, orient='columns')
-
-    results = data.loc[:, ['datetime', 'open', 'high', 'low', 'close']].set_index('datetime')
-
-    if 1 in indicators:
-        _macd = MACD(data=data.loc[:, ['datetime', 'close']], function=function)
-        _macd_df = _macd.table()
-        results = results.join(_macd_df, how='outer')
-
-    if 2 in indicators:
-        _rsi = RSI(data=data.loc[:, ['datetime', 'close']], function=function)
-        _rsi_df = _rsi.table()
-        results = results.join(_rsi_df, how='outer')
-
-    if len({3, 4, 5}.intersection(indicators)) > 0:
-        _ha = HeikinAshi(data=data.loc[:, ['datetime', 'open', 'high', 'low', 'close']], function=function)
-        _ha_df = _ha.table()
-
-        ha_data_ma = _ha_df[['ha_open', 'ha_close']].reset_index(drop=False)
-        ha_data_ma.columns = ['datetime', 'open', 'close']
-
-        if 3 in indicators:
-            _mac = MovingAverageCrossover(data=ha_data_ma.loc[:, ['datetime', 'close']],
-                                          function=function,
-                                          ma1_period=10,
-                                          ma2_period=20)
-            _mac_df = _mac.table()
-            results = results.join(_mac_df, how='outer')
-
-        if 4 in indicators:
-            _maz = MovingAverageZone(datetime=ha_data_ma['datetime'],
-                                     open=ha_data_ma['open'],
-                                     close=ha_data_ma['close'],
-                                     function=function)
-            _maz_df = _maz.table()
-            results = results.join(_maz_df, how='outer')
-
-        if 5 in indicators:
-            _retrace = Retracements(high=data['high'],
-                                    low=data['low'],
-                                    close=data['close'],
-                                    dates=data['datetime'],
-                                    function=function)
-            _retrace.get_retracements(low=.38, high=.6)
-            _retrace_df = _retrace.table()
-            results = results.join(_retrace_df, how='outer')
-
-    results = round_float_columns(data=results, digits=2)
-
-    return results.reset_index(drop=False).sort_values('datetime', ascending=False)
