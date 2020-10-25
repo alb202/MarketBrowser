@@ -90,7 +90,7 @@ class AlphaVantage:
                     raw_data[list(
                         filter(lambda x: x != "Meta Data",
                                raw_data.keys()))[0]]).transpose()
-            except (IndexError) as e:
+            except (IndexError, TypeError) as e:
                 log.warn("Error, raw data not accessed: ", e)
             else:
                 break
