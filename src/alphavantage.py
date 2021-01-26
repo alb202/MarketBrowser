@@ -1,3 +1,4 @@
+import random
 import re
 from itertools import cycle
 
@@ -17,7 +18,7 @@ class AlphaVantage:
     INFO_KEY = 'Information'
     # PROXY_URL = 'https://www.us-proxy.org'
     # PROXY_URL = 'https://free-proxy-list.net/'
-    PROXY_URL = 'https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=250&country=all&ssl=all&anonymity=all'
+    PROXY_URL = 'https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=250&country=all&ssl=all&anonymity=all&status=alive'
     DTYPES = {"symbol": str
         , "datetime": 'datetime64'
         , "open": float
@@ -30,11 +31,12 @@ class AlphaVantage:
         , "dividend_amount": float
         , "split_coefficient": float}
 
-    def __init__(self, keys, max_retries=10, retry_sleep=0):
+    def __init__(self, keys, max_retries=10, retry_sleep=0, use_proxy=False):
         self._keys = keys
         self.session = requests.Session()
         self.max_retries = max_retries
         self._sleep = retry_sleep
+        self.use_proxy = use_proxy
         http_adapter = requests.adapters.HTTPAdapter()
         self.session.mount('http://', http_adapter)
         self.session.mount('https://', http_adapter)
@@ -45,17 +47,19 @@ class AlphaVantage:
 
     def get_proxy_list(self):
         ip_address = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[0-9]+$'
-        while True:
-            try:
-                response = requests.get(self.PROXY_URL)
-            except requests.exceptions.ConnectionError as e:
-                log.warn('Error getting proxies', e)
-            else:
-                break
+        tries = 0
         proxies = []
-        for line in response.iter_lines():
-            if re.match(ip_address, line.decode("utf-8")):
-                proxies.append(line.decode("utf-8"))
+        while (tries < 10) & (len(proxies) == 0):
+            while True:
+                try:
+                    response = requests.get(self.PROXY_URL)
+                except requests.exceptions.ConnectionError as e:
+                    log.warn('Error getting proxies', e)
+                else:
+                    break
+            for line in response.iter_lines():
+                if re.match(ip_address, line.decode("utf-8")):
+                    proxies.append(line.decode("utf-8"))
         return proxies
 
     @staticmethod
@@ -139,13 +143,18 @@ class AlphaVantage:
         api_keys = cycle(self._keys)
 
         while True:
-            if tries == 0:
+            if (tries == 0) | (not self.use_proxy):
                 proxies = None
             else:
                 if tries > 20:
                     proxy_pool = cycle(self.get_proxy_list())
                     tries = 0
-                next_proxy = next(proxy_pool)
+                try:
+                    next_proxy = next(proxy_pool)
+                except StopIteration as e:
+                    print(e)
+                else:
+                    next_proxy = random.choice(self.get_proxy_list())
                 proxies = {'http': next_proxy, 'https': next_proxy}
             api_parameters['apikey'] = next(api_keys)
             print('Using key: ', api_parameters['apikey'])
