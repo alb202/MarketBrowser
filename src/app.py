@@ -210,7 +210,14 @@ MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
                                                 type="default",
                                                 children=[html.P(hidden=True,
                                                                  id='screener_status_indicator')])])]),
-                                    # dbc.Row(children=html.Hr()),
+                                    dbc.Row(align="middle", children=[
+                                        dbc.Col(children=[
+                                            dbc.Checklist(id='make_screener_fig', options=[
+                                                {'label': 'Show figure',
+                                                 'value': 'yes'}],
+                                                          value=[],
+                                                          inline=False,
+                                                          switch=True)])]),
                                     dbc.Row(children=html.Br()),
                                     dbc.Row(children=[
                                         dbc.Col(children=[
@@ -218,13 +225,14 @@ MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
                                                 dbc.Checklist(
                                                     options=[
                                                         {"label": "MACD Histogram", "value": 1},
-                                                        # {"label": "MACD Trend", "value": 2},
                                                         {"label": "RSI Crossover", "value": 2},
-                                                        {"label": "Moving Average Crossover", "value": 3},
-                                                        {"label": "Moving Average Zone", "value": 4},
-                                                        {"label": "50% Retracement", "value": 5},
-                                                        {"label": "Moving Average Change", "value": 6}],
-                                                    value=[1, 2, 3, 4, 5, 6],
+                                                        {"label": "Heiken Ashi Crossover", "value": 3},
+                                                        {"label": "Moving Average Crossover", "value": 4},
+                                                        {"label": "Moving Average Zone", "value": 5},
+                                                        {"label": "HA Buy Sell", "value": 6},
+                                                        {"label": "Moving Average Change", "value": 7},
+                                                        {"label": "50% Retracement", "value": 8}],
+                                                    value=[1, 2, 3, 4, 5, 6, 7, 8],
                                                     id="screener_indicator_options",
                                                     inline=False,
                                                     switch=True)])])])])]),

@@ -41,8 +41,9 @@ def register_screener_callbacks(app):
                   [Input('submit_screener', 'n_clicks')],
                   [State('screener_input_symbol', 'value'),
                    State('screener_function_options', 'value'),
-                   State('screener_indicator_options', 'value')])
-    def begin_screener(n_clicks, symbols, function, indicators):
+                   State('screener_indicator_options', 'value'),
+                   State('make_screener_fig', 'value')])
+    def begin_screener(n_clicks, symbols, function, indicators, show_fig):
         """Begin plotting the price data
         """
         if n_clicks == 0:
@@ -68,8 +69,10 @@ def register_screener_callbacks(app):
                             'macd_crossovers',
                             'macd_trend',
                             'rsi_crossover',
+                            'ha_indicator',
                             'mac_indicator',
                             'maz_indicator',
+                            'habs_indicator',
                             'ma_indicator',
                             'retracements']
             indicator_data = indicator_data.set_index(['datetime'])
@@ -80,6 +83,8 @@ def register_screener_callbacks(app):
 
         # Save the indicator data to a local tsv file
         save_indicator_data(dfs=copy.deepcopy(indicator_dict))
+        if not show_fig:
+            indicator_dict = None
         return [screener_plots(dfs=indicator_dict), n_clicks == 0]
 
 
