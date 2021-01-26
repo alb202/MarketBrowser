@@ -42,24 +42,27 @@ class AlphaVantage:
         self.session.mount('https://', http_adapter)
         self.raw_data = None
         self.processed_data = None
-        self.proxies = self.get_proxy_list()
+        self.proxies = self.get_proxy_list() if self.use_proxy else []
         print('proxies: ', len(self.proxies), self.proxies)
 
     def get_proxy_list(self):
         ip_address = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[0-9]+$'
         tries = 0
         proxies = []
-        while (tries < 10) & (len(proxies) == 0):
+        while (tries < 5) & (len(proxies) == 0):
+            print(f'Trying to get proxies for the {tries} time')
             while True:
                 try:
                     response = requests.get(self.PROXY_URL)
-                except requests.exceptions.ConnectionError as e:
+                except (Exception, requests.exceptions.ConnectionError) as e:
                     log.warn('Error getting proxies', e)
                 else:
                     break
             for line in response.iter_lines():
                 if re.match(ip_address, line.decode("utf-8")):
                     proxies.append(line.decode("utf-8"))
+            tries += 1
+        print('Proxies: ', proxies)
         return proxies
 
     @staticmethod

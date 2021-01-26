@@ -2,9 +2,9 @@ import datetime
 
 import numpy as np
 import pandas as pd
-from numba import jit
+# from numba import jit
 
-import main
+from .. import main
 from indicators import create_indicator_table
 
 pd.set_option('display.max_columns', None)
@@ -158,24 +158,24 @@ raw_data = main.main({
     'no_api': True}).loc[:, ['symbol', 'type']].drop_duplicates()
 # all_symbols = ['PLAY', 'REGN', 'ALNY', 'ACAD', 'AMAT', 'SIMO', 'AAL', 'INO', 'HEXO', 'IGC', 'ACB', 'JMIA', 'PFE',
 #                'SNDL', 'MRNA', 'CIDM', 'MTSI', 'SIMO', 'SPY', 'VIX']
-all_symbols = ['ABBV', 'ABT', 'ACAD', 'ADAP', 'ADVM', 'AGIO', 'AIMT', 'ALEC', 'ALKS', 'ALLO', 'ALNY', 'ALXN',
-               'AMGN', 'AMTI', 'ARNA', 'ARVN', 'ARWR', 'ASND', 'ATRA', 'AUPH', 'AZN', 'BBIO', 'BDTX', 'BDX',
-               'BEAM', 'BGNE', 'BIIB', 'BLUE', 'BMRN', 'BMY', 'BNTX', 'BPMC', 'BSX', 'BTAI', 'CBPO', 'CCXI',
-               'CDMOP', 'CGEN', 'CHRS', 'CRSP', 'CRTX', 'CYTK', 'DCPH', 'DHR', 'DNLI', 'DRNA', 'EBS', 'EDIT',
-               'EIDX', 'EPZM', 'ESPR', 'EW', 'EXAS', 'EXEL', 'FATE', 'FBIOP', 'FGEN', 'FOLD', 'GBT', 'GILD',
-               'GLPG', 'GSK', 'HALO', 'HRTX', 'IGC', 'ILMN', 'IMMU', 'IMVT', 'INCY', 'INO', 'INSM', 'IONS',
-               'IOVA', 'ISRG', 'ITCI', 'ITOS', 'JNJ', 'KOD', 'KPTI', 'KURA', 'KYMR', 'LGND', 'LLY', 'LMNX',
-               'MCRB', 'MDT', 'MESO', 'MGNX', 'MNTA', 'MOR', 'MRK', 'MRNA', 'MRSN', 'MRTX', 'MYGN', 'MYOV',
-               'NBIX', 'NGM', 'NKTX', 'NSTG', 'NTLA', 'NVAX', 'NVO', 'NVS', 'PACB', 'PCVX', 'PFE', 'PTCT',
-               'QURE', 'RARE', 'RCKT', 'RCUS', 'REGN', 'REPL', 'RGNX', 'RLAY', 'RNA', 'RYTM', 'SGEN', 'SGMO',
-               'SLS', 'SNY', 'SRNE', 'SRPT', 'STOK', 'SYK', 'TAK', 'TBIO', 'TECH', 'TGTX', 'TMO', 'TRIL', 'TWST',
-               'TXG', 'VCYT', 'VIE', 'VIR', 'VRTX', 'XLRN', 'XNCR', 'ZLAB', 'ZNTL', 'ZTS', 'SPY']
+# all_symbols = ['ABBV', 'ABT', 'ACAD', 'ADAP', 'ADVM', 'AGIO', 'AIMT', 'ALEC', 'ALKS', 'ALLO', 'ALNY', 'ALXN',
+#                'AMGN', 'AMTI', 'ARNA', 'ARVN', 'ARWR', 'ASND', 'ATRA', 'AUPH', 'AZN', 'BBIO', 'BDTX', 'BDX',
+#                'BEAM', 'BGNE', 'BIIB', 'BLUE', 'BMRN', 'BMY', 'BNTX', 'BPMC', 'BSX', 'BTAI', 'CBPO', 'CCXI',
+#                'CDMOP', 'CGEN', 'CHRS', 'CRSP', 'CRTX', 'CYTK', 'DCPH', 'DHR', 'DNLI', 'DRNA', 'EBS', 'EDIT',
+#                'EIDX', 'EPZM', 'ESPR', 'EW', 'EXAS', 'EXEL', 'FATE', 'FBIOP', 'FGEN', 'FOLD', 'GBT', 'GILD',
+#                'GLPG', 'GSK', 'HALO', 'HRTX', 'IGC', 'ILMN', 'IMMU', 'IMVT', 'INCY', 'INO', 'INSM', 'IONS',
+#                'IOVA', 'ISRG', 'ITCI', 'ITOS', 'JNJ', 'KOD', 'KPTI', 'KURA', 'KYMR', 'LGND', 'LLY', 'LMNX',
+#                'MCRB', 'MDT', 'MESO', 'MGNX', 'MNTA', 'MOR', 'MRK', 'MRNA', 'MRSN', 'MRTX', 'MYGN', 'MYOV',
+#                'NBIX', 'NGM', 'NKTX', 'NSTG', 'NTLA', 'NVAX', 'NVO', 'NVS', 'PACB', 'PCVX', 'PFE', 'PTCT',
+#                'QURE', 'RARE', 'RCKT', 'RCUS', 'REGN', 'REPL', 'RGNX', 'RLAY', 'RNA', 'RYTM', 'SGEN', 'SGMO',
+#                'SLS', 'SNY', 'SRNE', 'SRPT', 'STOK', 'SYK', 'TAK', 'TBIO', 'TECH', 'TGTX', 'TMO', 'TRIL', 'TWST',
+#                'TXG', 'VCYT', 'VIE', 'VIR', 'VRTX', 'XLRN', 'XNCR', 'ZLAB', 'ZNTL', 'ZTS', 'SPY']
 # all_symbols = ['NTLA', 'NVAX', 'NVO', 'NVS', 'PACB', 'PCVX', 'PFE', 'PTCT',
 #                'QURE', 'RARE', 'RCKT', 'RCUS', 'REGN', 'REPL', 'RGNX', 'RLAY', 'RNA', 'RYTM', 'SGEN', 'SGMO',
 #                'SLS', 'SNY', 'SRNE', 'SRPT', 'STOK', 'SYK', 'TAK', 'TBIO', 'TECH', 'TGTX', 'TMO', 'TRIL', 'TWST',
 #                'TXG', 'VCYT', 'VIE', 'VIR', 'VRTX', 'XLRN', 'XNCR', 'ZLAB', 'ZNTL', 'ZTS', 'SPY']
 # all_symbols = ['NTLA']
-# all_symbols = ['AAL']
+all_symbols = ['AAL']
 raw_data = raw_data[raw_data['symbol'].isin(all_symbols)]
 raw_data = raw_data[(raw_data['type'] == 'stock')]
 # raw_data = raw_data[(raw_data['type'] == 'stock') | (raw_data['type'] == 'etf')]
