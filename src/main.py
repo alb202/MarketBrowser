@@ -22,7 +22,7 @@ def main(args):
     log.info('<<< Starting MarketBrowser >>>')
     log.info('<<< Loading config and connecting to database >>>')
     cfg = Config(args['config']) if args['config'] is not None \
-        else Config("../resources/config.txt")
+        else Config("../resources/config.cfg")
     log.info('<<< Creating database connection >>>')
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
