@@ -223,9 +223,9 @@ MarketScreenerTab = dcc.Tab(label='MarketScreener', children=[
                                     dbc.Row(align="middle", children=[
                                         dbc.Col(children=[
                                             dbc.Checklist(id='make_screener_fig', options=[
-                                                {'label': 'Show figure',
-                                                 'value': 'yes'}],
-                                                          value=[],
+                                                {'label': 'Save figure', 'value': 1},
+                                                {'label': 'Show figure', 'value': 2}],
+                                                          value=[1],
                                                           inline=False,
                                                           switch=True)])]),
                                     dbc.Row(children=html.Br()),

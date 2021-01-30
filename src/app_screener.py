@@ -44,11 +44,11 @@ def register_screener_callbacks(app):
                    State('screener_function_options', 'value'),
                    State('screener_indicator_options', 'value'),
                    State('make_screener_fig', 'value')])
-    def begin_screener(n_clicks, symbols, function, indicators, show_fig):
+    def begin_screener(n_clicks, symbols, function, indicators, make_screener_fig):
         """Begin plotting the price data
         """
         if n_clicks == 0:
-            return [screener_plots(dfs=[]), True]
+            return [screener_plots(dfs={}), True]
 
         interval = INTERVAL_LOOKUP[function] if function >= 4 else None
         function = FUNCTION_LOOKUP[function]
@@ -86,9 +86,13 @@ def register_screener_callbacks(app):
 
         # Save the indicator data to a local tsv file
         save_indicator_data(dfs=copy.deepcopy(indicator_dict))
-        if not show_fig:
-            indicator_dict = None
-        return [screener_plots(dfs=indicator_dict), n_clicks == 0]
+        if (len(make_screener_fig) > 0) & (len(indicator_dict) > 0):
+            return [screener_plots(
+                dfs=indicator_dict,
+                save_fig=(1 in make_screener_fig),
+                show_fig=(2 in make_screener_fig)), n_clicks == 0]
+        else:
+            return [screener_plots(dfs=dict(), save_fig=False, show_fig=False), n_clicks == 0]
 
 
 def save_indicator_data(dfs):
@@ -134,82 +138,86 @@ def generate_screener_symbol_input():
                         id='screener_input_symbol')
 
 
-def screener_plots(dfs={}):
+def screener_plots(dfs={}, save_fig=True, show_fig=True):
     """Generate the input for creating symbols
     """
-    if not dfs:
-        return make_subplots(rows=1, cols=1)
-    cs = [[0.0, 'red'],
-          [0.5, 'lightgrey'],
-          [1.0, 'green']]
+    print(f'Generating screen plots - save_fig: {save_fig}   show_fig: {show_fig}')
+    if (len(dfs) > 0) & (save_fig | show_fig):
+        cs = [[0.0, 'red'],
+              [0.5, 'lightgrey'],
+              [1.0, 'green']]
 
-    data_list = [(key, value) for key, value in dfs.items()]
-    data_list = sorted(data_list, reverse=True, key=lambda x: (x[1].iloc[0, :].sum(),
-                                                               x[1].iloc[1, :].sum(),
-                                                               x[1].iloc[3, :].sum(),
-                                                               x[1].iloc[4, :].sum(),
-                                                               x[1].iloc[5, :].sum()))
-    # if len(data_list) % 2 == 1:
-    #     data_list.append(('', pd.DataFrame({})))
-    number_of_plots = len(data_list)
-    subplot_cols = int(np.ceil(number_of_plots / 50))
-    subplot_rows = int(np.ceil(number_of_plots / subplot_cols))
+        data_list = [(key, value) for key, value in dfs.items()]
+        data_list = sorted(data_list, reverse=True, key=lambda x: (x[1].iloc[0, :].sum(),
+                                                                   x[1].iloc[1, :].sum(),
+                                                                   x[1].iloc[3, :].sum(),
+                                                                   x[1].iloc[4, :].sum(),
+                                                                   x[1].iloc[5, :].sum()))
+        # if len(data_list) % 2 == 1:
+        #     data_list.append(('', pd.DataFrame({})))
+        number_of_plots = len(data_list)
+        subplot_cols = int(np.ceil(number_of_plots / 50))
+        subplot_rows = int(np.ceil(number_of_plots / subplot_cols))
 
-    # subplot_cols = int(np.around(len(data_list) / 50)) if len(data_list) > 50 else int(1)
-    print('subplot_cols', subplot_cols)
-    # subplot_rows = int(len(data_list) / subplot_cols)
-    print('subplot_rows', subplot_rows)
-    subplot_titles = [i[0] for i in data_list]
-    # print('subplot_titles',  subplot_titles)
-    data_list = [i[1] for i in data_list]
-    rows_heights = [100] * subplot_rows
-    print('rows_heights', rows_heights)
-    fig = make_subplots(rows=subplot_rows, cols=subplot_cols,
-                        row_heights=rows_heights,
-                        shared_xaxes=True,
-                        subplot_titles=subplot_titles)
-    fig_width = 600 * subplot_cols
-    fig_height = 40 * len(data_list[0].columns) * subplot_rows
-    print('fig_width: ', fig_width)
-    print('fig_height: ', fig_height)
-    fig.update_layout(
-        width=fig_width,
-        height=fig_height)
-    fig.update(layout_showlegend=False)
-    fig.update(layout_coloraxis_showscale=False)
+        # subplot_cols = int(np.around(len(data_list) / 50)) if len(data_list) > 50 else int(1)
+        print('subplot_cols', subplot_cols)
+        # subplot_rows = int(len(data_list) / subplot_cols)
+        print('subplot_rows', subplot_rows)
+        subplot_titles = [i[0] for i in data_list]
+        # print('subplot_titles',  subplot_titles)
+        data_list = [i[1] for i in data_list]
+        rows_heights = [100] * subplot_rows
+        print('rows_heights', rows_heights)
+        fig = make_subplots(rows=subplot_rows, cols=subplot_cols,
+                            row_heights=rows_heights,
+                            shared_xaxes=True,
+                            subplot_titles=subplot_titles)
+        fig_width = 600 * subplot_cols
+        fig_height = 40 * len(data_list[0].columns) * subplot_rows
+        print('fig_width: ', fig_width)
+        print('fig_height: ', fig_height)
+        fig.update_layout(
+            width=fig_width,
+            height=fig_height)
+        fig.update(layout_showlegend=False)
+        fig.update(layout_coloraxis_showscale=False)
 
-    for row in range(1, subplot_rows + 1):
-        for col in range(1, subplot_cols + 1):
-            df = data_list.pop(0)
-            df = df.fillna(0).head(200)
-            hm = go.Heatmap(
-                {'z': df.transpose().values.tolist(),
-                 'y': df.columns.tolist(),
-                 'x': df.index.tolist()},
-                # title=dict(text=),
-                colorscale=cs, showscale=False,
-                xgap=1, ygap=1, zmin=-1, zmax=1)
-            fig.append_trace(hm, row=row, col=col)
-            # fig.update_
-            # fig.update_layout(
-            #     annotations=[
-            #         dict(
-            #             x=2, y=2,  # annotation point
-            #             xref='x1',
-            #             yref='y1',
-            #             text='dict Text',
-            #             showarrow=True,
-            #             arrowhead=7,
-            #             ax=10,
-            #             ay=70
-            #         )
+        for row in range(1, subplot_rows + 1):
+            for col in range(1, subplot_cols + 1):
+                df = data_list.pop(0)
+                df = df.fillna(0).head(200)
+                hm = go.Heatmap(
+                    {'z': df.transpose().values.tolist(),
+                     'y': df.columns.tolist(),
+                     'x': df.index.tolist()},
+                    # title=dict(text=),
+                    colorscale=cs, showscale=False,
+                    xgap=1, ygap=1, zmin=-1, zmax=1)
+                fig.append_trace(hm, row=row, col=col)
+                # fig.update_
+                # fig.update_layout(
+                #     annotations=[
+                #         dict(
+                #             x=2, y=2,  # annotation point
+                #             xref='x1',
+                #             yref='y1',
+                #             text='dict Text',
+                #             showarrow=True,
+                #             arrowhead=7,
+                #             ax=10,
+                #             ay=70
+                #         )
+                if not data_list:
+                    break
             if not data_list:
                 break
-        if not data_list:
-            break
-    fig.layout.coloraxis.showscale = False
-    save_indicator_figure(fig)
-    return fig
+            fig.layout.coloraxis.showscale = False
+        if save_fig:
+            save_indicator_figure(fig)
+        if show_fig:
+            return fig
+    return make_subplots(rows=1, cols=1)
+
 
 # def generate_indicator_symbol_input():
 #     """Generate the input for creating symbols
