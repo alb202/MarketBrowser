@@ -67,6 +67,9 @@ def validate_args(args):
     if (not args['symbol']):
         log.info('At least one symbol must be provided! Exiting ... ')
         sys.exit()
+    if (args['force_update'] & args['no_api']):
+        log.info('Cannot use --force_update and --no_api flags! Exiting ... ')
+        sys.exit()
     if (not args['function']) \
             & (not args['get_all']) \
             & (not args['data_status']) \

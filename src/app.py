@@ -133,6 +133,15 @@ MarketDownloaderTab = dcc.Tab(label='MarketDownloader', children=[
                                 dbc.CardBody(children=[
                                     dbc.Row(children=[
                                         dbc.Col(children=[
+                                            dbc.Checklist(id='force_bulk_download', options=[
+                                                {'label': 'Force update',
+                                                 'value': True}],
+                                                          value=False,
+                                                          inline=False,
+                                                          switch=True)])]),
+                                    dbc.Row(children=html.Br()),
+                                    dbc.Row(children=[
+                                        dbc.Col(children=[
                                             dbc.Button(children=['Update symbols'], id='submit_batch',
                                                        n_clicks=0)]),
                                         dbc.Col(align='center', children=[
@@ -151,7 +160,8 @@ MarketDownloaderTab = dcc.Tab(label='MarketDownloader', children=[
                                                         {"label": "Intraday - 30 Minute", "value": 5},
                                                         {"label": "Intraday - 15 Minute", "value": 6},
                                                         {"label": "Intraday - 5 Minute", "value": 7}],
-                                                    value=[1, 2, 3, 4, 5, 6, 7],
+                                                    # value=[1, 2, 3, 4, 5, 6, 7],
+                                                    value=[3],
                                                     id="batch_download_options",
                                                     inline=False,
                                                     switch=True)])])]),

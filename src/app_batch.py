@@ -9,16 +9,22 @@ def register_batch_callbacks(app):
     @app.callback([Output('status_indicator', 'hidden')],
                   [Input('submit_batch', 'n_clicks')],
                   [State('batch_input_symbol', 'value'),
-                   State('batch_download_options', 'value')])
-    def process_batch_request(n_clicks, batch_input_symbol, batch_options):
+                   State('batch_download_options', 'value'),
+                   State('force_bulk_download', 'value')])
+    def process_batch_request(n_clicks, batch_input_symbol, batch_options, force_update):
         """Begin plotting the price data
         """
         if batch_input_symbol is None:
             print("Symbol list is empty")
             return [True]
+
         if batch_input_symbol == '':
             print("Symbol list is empty")
             return [True]
+        #
+        # if force_update == '':
+        #     print("Symbol list is empty")
+        #     return [True]
 
         print("Symbol list is NOT empty: ", batch_input_symbol)
         # symbol_list = [i.strip(' ').upper() for i in
@@ -31,7 +37,7 @@ def register_batch_callbacks(app):
         # symbol_list = [i for i in symbol_list if i is not None]
         symbol_list = app_utilities.process_symbol_input(batch_input_symbol)
         print('Symbol list: ', symbol_list)
-        params = set_batch_params(batch_options)
+        params = set_batch_params(batch_options, force_update)
 
         print('params: ', params)
         print('symbol_list: ', symbol_list)
@@ -68,8 +74,8 @@ def register_batch_callbacks(app):
         return ' '.join(symbols)
 
 
-def set_batch_params(options):
-    params = {'get_all': False, 'function': [], 'interval': []}
+def set_batch_params(options, force_update=False):
+    params = {'get_all': False, 'function': [], 'interval': [], 'force_update': force_update}
     if len(options) == 7:
         params['get_all'] = True
     else:
@@ -116,6 +122,7 @@ def get_batch_data(n_clicks, symbols, params):
          'interval': params['interval'],
          'config': None,
          'get_all': params['get_all'],
+         'force_update': params['force_update'],
          'no_return': True,
          'get_symbols': None,
          'data_status': False,

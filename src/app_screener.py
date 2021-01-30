@@ -26,6 +26,7 @@ def register_screener_callbacks(app):
              'config': None,
              'get_all': False,
              'no_return': False,
+             'force_update': False,
              'data_status': True,
              'get_symbols': False,
              'refresh': False,
@@ -64,7 +65,7 @@ def register_screener_callbacks(app):
                                     no_api=True),
                 function=function,
                 indicators=indicators)
-
+            print(f'Indicator data retrieved for {symbol}')
             plot_columns = ['datetime'
                             'macd_crossovers',
                             'macd_trend',
@@ -76,10 +77,12 @@ def register_screener_callbacks(app):
                             'ma_indicator',
                             'retracements']
             indicator_data = indicator_data.set_index(['datetime'])
+            print('Indicator index set as datetime')
             indicator_data = indicator_data.loc[:, [col for col in indicator_data.columns if col in plot_columns]]
-
+            print('Indicator columns set')
             # print(indicator_data.head(5))
             indicator_dict[symbol] = indicator_data
+            print(indicator_data)
 
         # Save the indicator data to a local tsv file
         save_indicator_data(dfs=copy.deepcopy(indicator_dict))
@@ -89,6 +92,7 @@ def register_screener_callbacks(app):
 
 
 def save_indicator_data(dfs):
+
     check_dir_exists("../downloads")
     all_dfs = []
     levels = ['symbol', 'indicator']

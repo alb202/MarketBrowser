@@ -9,8 +9,7 @@ from retracements import *
 USFEDHOLIDAYS = USFederalHolidayCalendar()
 USFEDHOLIDAYS.merge(GoodFriday, inplace=True)
 MARKET_HOLIDAYS = [i.astype(datetime.datetime).strftime('%Y-%m-%d') for i in
-                   list(pd.offsets.CustomBusinessDay(calendar=USFEDHOLIDAYS)
-                        .__dict__['holidays'])][200:700]
+                   list(pd.offsets.CustomBusinessDay(calendar=USFEDHOLIDAYS).holidays)][200:700]
 
 FUNCTION_LOOKUP = {1: 'TIME_SERIES_MONTHLY_ADJUSTED',
                    2: 'TIME_SERIES_WEEKLY_ADJUSTED',
@@ -116,6 +115,7 @@ def get_price_data(n_clicks, symbol, function, interval, no_api=False):
          'config': None,
          'get_all': False,
          'no_return': False,
+         'force_update': False,
          'data_status': False,
          'get_symbols': False,
          'no_api': no_api})['prices']

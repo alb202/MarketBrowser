@@ -3,7 +3,6 @@ It is for the core application functionality
 """
 
 import argparse
-
 import logger
 import market_time
 import utilities
@@ -17,6 +16,7 @@ log = logger.get_logger(__name__)
 
 
 def main(args):
+    print('args: ', args)
     """Retrieve most up-to-date time series data for a single symbol/function
     """
     log.info('<<< Starting MarketBrowser >>>')
@@ -39,7 +39,7 @@ def main(args):
             symbols = symbols.merge(data_status, how='inner', on='symbol')
         return symbols
 
-    if not args['no_api']:
+    if ((not args['no_api'] ) & (not args['force_update'])):
         log.info('<<< Checking market status >>>')
         market_time_info = market_time.MarketTime(cfg=cfg)
         last_business_hours = market_time.BusinessHours(market_time_info)
@@ -62,39 +62,42 @@ def main(args):
             else:
                 interval_arg_list_ = [None]
             for interval_arg in interval_arg_list_:
-                if not args['no_api']:
-                    last_update = data_status.get_last_update(
-                        symbol=symbol_arg.upper(),
-                        function=function_arg,
-                        interval=interval_arg)
-                    get_new_data = utilities.get_new_data_test(last_update,
-                                                               last_market_time)
-                else:
+                last_update = data_status.get_last_update(
+                    symbol=symbol_arg.upper(),
+                    function=function_arg,
+                    interval=interval_arg)
+                if args['force_update']:
+                    get_new_data = True
+                elif args['no_api']:
                     get_new_data = False
+                else:
+                    get_new_data = utilities.get_new_data_test(last_update, last_market_time)
+
                 log.info('<<< Getting timeseries data >>>')
                 query = TimeSeries(con=db_connection,
                                    function=function_arg,
                                    symbol=symbol_arg,
                                    interval=interval_arg)
                 query.get_local_data()
-                if get_new_data and not args['no_api']:
+                if get_new_data:
                     log.info('<<< Getting most recent time series data >>>')
                     query.get_remote_data(cfg=cfg)
 
                     log.info('<<< Saving update information to database >>>')
-                    if last_update is None:
-                        data_status.add_status_entry(
-                            symbol=symbol_arg,
-                            function=function_arg,
-                            interval=interval_arg)
-                    else:
-                        data_status.update_status_entry(
-                            symbol=symbol_arg,
-                            function=function_arg,
-                            interval=interval_arg)
-                    # if get_new_data and not args['no_api']:
-                    log.info("<<< Saving data statuses to database >>>")
-                    data_status.save_table(database=db_connection)
+                    if len(query.remote_data.prices) > 0:
+                        if last_update is None:
+                            data_status.add_status_entry(
+                                symbol=symbol_arg,
+                                function=function_arg,
+                                interval=interval_arg)
+                        else:
+                            data_status.update_status_entry(
+                                symbol=symbol_arg,
+                                function=function_arg,
+                                interval=interval_arg)
+                        # if get_new_data and not args['no_api']:
+                        log.info("<<< Saving data statuses to database >>>")
+                        data_status.save_table(database=db_connection)
 
     if args['no_return'] | \
             (not args['symbol']) | \
@@ -139,6 +142,8 @@ def parse_args():
                         help='View the data status table')
     parser.add_argument('--no_api', action='store_true',
                         help="Don't get updated data from api - just get local data")
+    parser.add_argument('--force_update', action='store_true',
+                        help="Get fresh data from API")
     parser.add_argument('--get_symbols', action='store_true',
                         help='Get all market symbols')
     parser.add_argument('--refresh', action='store_true',
