@@ -31,19 +31,20 @@ class AlphaVantage:
         , "dividend_amount": float
         , "split_coefficient": float}
 
-    def __init__(self, keys, max_retries=10, retry_sleep=0, use_proxy=False):
+    def __init__(self, keys, max_retries=100, retry_sleep=5, use_proxy=True):
         self._keys = keys
-        self.session = requests.Session()
+        # self.session = requests.Session()
         self.max_retries = max_retries
         self._sleep = retry_sleep
         self.use_proxy = use_proxy
-        http_adapter = requests.adapters.HTTPAdapter()
-        self.session.mount('http://', http_adapter)
-        self.session.mount('https://', http_adapter)
+        # http_adapter = requests.adapters.HTTPAdapter()
+        # self.session.mount('http://', http_adapter)
+        # self.session.mount('https://', http_adapter)
+        self.success = False
         self.raw_data = None
         self.processed_data = None
         self.proxies = self.get_proxy_list() if self.use_proxy else []
-        print('proxies: ', len(self.proxies), self.proxies)
+        # print('proxies: ', len(self.proxies), self.proxies)
 
     def get_proxy_list(self):
         ip_address = r'^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[0-9]+$'
@@ -55,7 +56,7 @@ class AlphaVantage:
                 try:
                     response = requests.get(self.PROXY_URL)
                 except (Exception, requests.exceptions.ConnectionError) as e:
-                    log.warn('Error getting proxies', e)
+                    log.warning('Error getting proxies', e)
                 else:
                     break
             for line in response.iter_lines():
@@ -98,12 +99,16 @@ class AlphaVantage:
                         filter(lambda x: x != "Meta Data",
                                raw_data.keys()))[0]]).transpose()
             except (IndexError, TypeError) as e:
-                log.warn("Error, raw data not accessed: ", e)
+                log.warning("Error, raw data not accessed: ", e)
+                tries += 1
+                if tries > 100:
+                    self.return_empty(dividends=True)
+                continue
             else:
                 break
-            if tries > 4:
-                break
-            tries += 1
+            # if tries > 15:
+            #     break
+            # tries += 1
 
         price_data.columns = self.format_column_names(price_data.columns)
         price_data.reset_index(drop=False, inplace=True)
@@ -129,6 +134,8 @@ class AlphaVantage:
         price_data = price_data[price_data['datetime'].map(
             pd.tseries.offsets.BDay().is_on_offset)]
         log.info(f"Time series data created with columns: {str(list(price_data.columns))}")
+        if len(price_data) > 0:
+            self.success = True
         return {'prices': price_data, 'dividends': dividend_data}
 
     def call_server(self, symbol, function, interval):
@@ -145,33 +152,32 @@ class AlphaVantage:
         proxy_pool = cycle(self.proxies)
         api_keys = cycle(self._keys)
 
-        while True:
+        while tries < self.max_retries:
             if (tries == 0) | (not self.use_proxy):
                 proxies = None
             else:
-                if tries > 20:
-                    proxy_pool = cycle(self.get_proxy_list())
-                    tries = 0
-                try:
-                    next_proxy = next(proxy_pool)
-                except StopIteration as e:
-                    print(e)
-                else:
-                    next_proxy = random.choice(self.get_proxy_list())
+                next_proxy = random.choice(self.proxies)
                 proxies = {'http': next_proxy, 'https': next_proxy}
+            tries += 1
             api_parameters['apikey'] = next(api_keys)
             print('Using key: ', api_parameters['apikey'])
             print('Using proxy: ', proxies)
+            session = requests.Session()
+            http_adapter = requests.adapters.HTTPAdapter()
+            session.mount('http://', http_adapter)
+            session.mount('https://', http_adapter)
             try:
-                response = self.session.get(
-                    url=self.AV_URL, params=api_parameters,
-                    proxies=proxies, timeout=(5, 5))
+                response = session.get(
+                    url=self.AV_URL,
+                    params=api_parameters,
+                    proxies=proxies,
+                    timeout=(8, 10))
             except requests.RequestException as e:
                 log.info("Data grab failed. Exiting!")
-                log.warn(e)
+                log.warning(e)
+                continue
             else:
                 print('status_code:', response.status_code)
-
                 if response.status_code == 200:
                     log.info("Object loaded with raw data")
                     raw_data = response.json()
@@ -190,21 +196,33 @@ class AlphaVantage:
                     else:
                         log.info(f"API call successful: {symbol} {function} {interval} ...")
                         return response.json()
-                    log.warn(f"API call error: {msg}. Trying again ...")
-                if tries >= self.max_retries:
-                    return None
-                tries += 1
+                    log.warning(f"API call error: {msg}. Trying again ...")
+                else:
+                    continue
+        return
 
-#
-#
-# av = AlphaVantage(keys=['5V11PBP7KPJDDNUP', 'LJLPYWJ9BW6A16TV', 'BCBU9ER8HOV78Z02'])
+    def return_empty(self, dividends=True):
+        return {'prices': pd.DataFrame(index=None,
+                                       columns=['datetime','open','high','low','close',
+                                                'adjusted_close','volume','split_coefficient','symbol']),
+                'dividends': pd.DataFrame(index=None,
+                                          columns=['symbol','datetime','dividend_amount','period'])}
+
+
+
+
+# av = AlphaVantage(keys=['5V11PBP7KPJDDNUP', 'LJLPYWJ9BW6A16TV', 'BCBU9ER8HOV78Z02'], use_proxy=True)
 # new_data = []
-# for i in ['SPY', 'AMAT', 'SPYG', 'REGN', 'USRT', 'VNQ', 'PLAY', 'QQQ', 'LUV']:
+# print(av.return_empty())
+# for i in ['SPY', 'AMAT']:#, 'SPYG', 'REGN', 'USRT', 'VNQ', 'PLAY', 'QQQ', 'LUV']:
 #     data = av.get_data_from_api(
 #         symbol=i,
-#         function='TIME_SERIES_INTRADAY',
-#         interval='30min',
+#         function='TIME_SERIES_DAILY_ADJUSTED',
+#         # interval=,
 #         # function='TIME_SERIES_MONTHLY_ADJUSTED',
-#         # interval=None,
-#         dividend_period='month')
+#         interval=None,
+#         dividend_period='day')
 #     print(data['prices'].head(5))
+#     print(list(data['prices'].columns))
+#     print(list(data['dividends'].columns))
+
