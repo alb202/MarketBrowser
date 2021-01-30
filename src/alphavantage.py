@@ -31,7 +31,7 @@ class AlphaVantage:
         , "dividend_amount": float
         , "split_coefficient": float}
 
-    def __init__(self, keys, max_retries=100, retry_sleep=5, use_proxy=True):
+    def __init__(self, keys, max_retries=25, retry_sleep=5, use_proxy=True):
         self._keys = keys
         # self.session = requests.Session()
         self.max_retries = max_retries
@@ -92,7 +92,7 @@ class AlphaVantage:
         """
         log.info("Processing raw data from API")
         tries = 0
-        while True:
+        while tries < self.max_retries:
             try:
                 price_data = pd.DataFrame.from_dict(
                     raw_data[list(
@@ -101,14 +101,11 @@ class AlphaVantage:
             except (IndexError, TypeError) as e:
                 log.warning("Error, raw data not accessed: ", e)
                 tries += 1
-                if tries > 100:
-                    self.return_empty(dividends=True)
                 continue
             else:
                 break
-            # if tries > 15:
-            #     break
-            # tries += 1
+        if tries > self.max_retries:
+            return self.return_empty(dividends=True)
 
         price_data.columns = self.format_column_names(price_data.columns)
         price_data.reset_index(drop=False, inplace=True)
