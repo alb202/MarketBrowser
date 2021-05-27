@@ -1,10 +1,11 @@
 import datetime
-
-# from indicators import *
+import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar, GoodFriday
 
-import main
-from retracements import *
+from src.main import *
+from src.indicators import *
+from src.retracements import *
+
 
 USFEDHOLIDAYS = USFederalHolidayCalendar()
 USFEDHOLIDAYS.merge(GoodFriday, inplace=True)
@@ -70,17 +71,6 @@ def get_layout_params(symbol):
     return layout
 
 
-def round_float_columns(data, digits=2):
-    dtypes = data.dtypes
-    print(dtypes)
-    round_cols = [i for i, j in dtypes.items() if j == 'float64']
-    print(round_cols)
-    # new_data = data.copy(deep=True)
-    for i in round_cols:
-        data[i] = data[i].round(decimals=2)
-    return data
-
-
 def process_symbol_input(symbols):
     symbols = [i.strip(' ').upper() for i in symbols
         .replace('\n', ' ')
@@ -108,7 +98,7 @@ def get_price_data(n_clicks, symbol, function, interval, no_api=False):
                              'close': [],
                              'volume': []})
 
-    return main.main(
+    return main(
         {'function': [function],
          'symbol': [symbol.upper()],
          'interval': [interval],

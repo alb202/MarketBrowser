@@ -1,12 +1,11 @@
 import dash_table
 import numpy as np
 import pandas as pd
+
 from dash.dependencies import Output, Input, State
 from dash_table.Format import Format
+from src.main import *
 
-import main
-
-# from dash_table.Format import Format
 
 COLS = ['symbol', 'name', 'type', 'sector', 'industry', 'marketCap', 'sharesOutstanding', 'float']
 COLS_NAMES = [
@@ -79,7 +78,7 @@ def get_market_symbols(n_clicks, refresh, view_tracked_only=False):
     if (n_clicks == 0):
         return pd.DataFrame(columns=COLS)
 
-    return main.main(
+    return main(
         {'function': None,
          'symbol': None,
          'interval': None,

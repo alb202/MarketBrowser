@@ -5,10 +5,12 @@ It contains classes for general functionality
 import datetime as dt
 import math
 import sys
+import numba as nb
+import numpy as np
 
-import logger
+from .logger import *
 
-log = logger.get_logger(__name__)
+log = get_logger(__name__)
 
 DATA_COLUMNS1 = ["symbol", "datetime", "open", "high", "low", "close", "volume", "interval"]
 DATA_COLUMNS2 = ["symbol", "datetime", "open", "high", "low", "close", "adjusted_close",
@@ -124,3 +126,42 @@ def convert_df_dtypes(df, dtypes):
         except (KeyError, ValueError) as e:
             print(e)
     return df
+
+def round_float_columns(data, digits=2):
+    dtypes = data.dtypes
+    # print(dtypes)
+    round_cols = [i for i, j in dtypes.items() if j == 'float64']
+    # print(round_cols)
+    # new_data = data.copy(deep=True)
+    for i in round_cols:
+        data[i] = data[i].round(decimals=2)
+    return data
+
+
+@nb.njit(nogil=True)
+def jit_mean(x):
+    return np.sum(x) / len(x)
+
+@nb.njit(nogil=True)
+def jit_round(a, n):
+    return np.round_(a=a, decimals=n)
+
+@nb.njit(nogil=True)
+def jit_multiply(n1, n2):
+    return np.multiply(n1, n2)
+
+@nb.njit(nogil=True)
+def jit_divide(n1, n2):
+    return np.divide(n1, n2)
+
+@nb.njit(nogil=True)
+def jit_subtract(n1, n2):
+    return np.subtract(n1, n2)
+
+@nb.njit(nogil=True)
+def jit_diff(a, n):
+    return np.concatenate((np.diff(a=a, n=n), np.zeros(n)))
+
+@nb.jit(nopython=True, parallel=True)
+def jit_greater(a, b):
+    return a > b

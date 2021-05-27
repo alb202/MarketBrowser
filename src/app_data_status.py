@@ -1,8 +1,8 @@
 import dash_table
-import main
 import pandas as pd
 from dash.dependencies import Output, Input
 
+from src.main import *
 
 def register_data_status_callbacks(app):
     @app.callback([Output('data_status_table', 'data'),
@@ -54,11 +54,12 @@ def get_data_status(n_clicks):
         return pd.DataFrame(
             columns=['symbol', 'function', 'interval', 'datetime'])
 
-    return main.main(
+    return main(
         {'function': None,
          'symbol': None,
          'interval': None,
          'config': None,
+         'force_update': False,
          'get_symbols': None,
          'data_status': True,
          'no_api': False}).sort_values('symbol')

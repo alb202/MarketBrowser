@@ -1,10 +1,10 @@
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-import dash_table
 from dash.dependencies import Output, Input, State
+import dash_table
 
-from app_utilities import *
-from indicators import create_indicator_table
+from src.app_utilities import *
+from src.indicators import create_indicator_table
 
 
 def register_indicator_callbacks(app):

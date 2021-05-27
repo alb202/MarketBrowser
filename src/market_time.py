@@ -4,12 +4,11 @@ It is used for tracking the current time relative to the market hours
 
 """
 import datetime as dt
-
-import logger
 import pandas as pd
 from pandas.tseries.holiday import USFederalHolidayCalendar
+from .logger import *
 
-log = logger.get_logger(__name__)
+log = get_logger(__name__)
 
 
 class MarketTime():

@@ -1,14 +1,11 @@
 import dash_bootstrap_components as dbc
 import dash_core_components as dcc
-import main
-import pandas as pd
-import plotly.graph_objects as go
-from app_utilities import *
 from dash.dependencies import Output, Input, State
-from indicators import *
-from plotly.subplots import make_subplots
-from retracements import *
 
+from src.main import *
+from src.indicators import *
+from src.retracements import *
+from src.app_utilities import *
 
 def register_graphing_callbacks(app):
     @app.callback(Output('input_interval', 'disabled'),
@@ -117,12 +114,13 @@ def get_data(n_clicks, symbol, function, interval, no_api):
                                            'datetime': [],
                                            'dividend_amount': []})}
 
-    return main.main(
+    return main(
         {'function': [function],
          'symbol': [symbol.upper()],
          'interval': [interval],
          'config': None,
          'get_all': False,
+         'force_update': False,
          'no_return': False,
          'data_status': False,
          'get_symbols': False,

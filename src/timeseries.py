@@ -5,14 +5,13 @@ This module controls the request of data from the server and formatting of times
 
 import datetime as dt
 import sys
-
-import alphavantage
-import logger
 import pandas as pd
 import requests
-import utilities
+from src.alphavantage import AlphaVantage
+from src.logger import *
+from src.utilities import *
 
-log = logger.get_logger(__name__)
+log = get_logger(__name__)
 
 
 def convert_string_to_datetime(string, str_format):
@@ -349,7 +348,7 @@ class TimeSeries():
         def __init__(self, cfg, local_data, params):
             log.info("Creating TimeSeries object")
 
-            av = alphavantage.AlphaVantage(keys=cfg.view_price_apikey())
+            av = AlphaVantage(keys=cfg.view_price_apikey())
             processed_data = av.get_data_from_api(
                 symbol=params['symbol'],
                 function=params['function'],

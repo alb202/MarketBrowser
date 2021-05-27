@@ -1,8 +1,7 @@
-import app_utilities
 import dash
 import dash_core_components as dcc
-import main
 from dash.dependencies import Output, Input, State
+from src.app_utilities import *
 
 
 def register_batch_callbacks(app):
@@ -35,7 +34,7 @@ def register_batch_callbacks(app):
         #                    .strip(' ')
         #                    .split(' ')]
         # symbol_list = [i for i in symbol_list if i is not None]
-        symbol_list = app_utilities.process_symbol_input(batch_input_symbol)
+        symbol_list = process_symbol_input(batch_input_symbol)
         print('Symbol list: ', symbol_list)
         params = set_batch_params(batch_options, force_update)
 
@@ -116,7 +115,7 @@ def get_batch_data(n_clicks, symbols, params):
         print('not running')
         return True
 
-    main.main(
+    main(
         {'function': params['function'],
          'symbol': symbols,
          'interval': params['interval'],

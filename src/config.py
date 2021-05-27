@@ -4,19 +4,17 @@
 import datetime as dt
 import random
 import sys
-
-import logger
 import pytz
+from .logger import *
 
-log = logger.get_logger(__name__)
-
+log = get_logger(__name__)
 
 class Config:
     """Class for loading and accessing configuration settings
     """
 
     def __init__(self, path):
-        log.info("Creating config object")
+        log.info(f"Creating config object with config file {path}")
         self._config = self.load_config(path)
         self._price_key = self.load_key(self.view_price_apikey_path())
         self._stock_key = self.load_key(self.view_stock_apikey_path())
@@ -48,7 +46,7 @@ class Config:
         """
         log.info("Loading config file")
         try:
-            with open("./" + path, 'r') as file:
+            with open(path, 'r') as file:
                 cfg = dict()
                 for line in file:
                     splt_line = line.split("=")

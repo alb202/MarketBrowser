@@ -5,9 +5,10 @@ from functools import reduce
 import dash_core_components as dcc
 from dash.dependencies import Output, Input, State
 
-from indicators import *
-from retracements import *
-
+from src.main import *
+from src.indicators import *
+from src.retracements import *
+from src.app_utilities import *
 
 def register_screener_callbacks(app):
     @app.callback(Output('screener_input_symbol', 'value'),
@@ -19,7 +20,7 @@ def register_screener_callbacks(app):
         if n_clicks == 0:
             return None
 
-        df = main.main(
+        df = main(
             {'function': None,
              'symbol': None,
              'interval': None,
@@ -65,6 +66,9 @@ def register_screener_callbacks(app):
                                     no_api=True),
                 function=function,
                 indicators=indicators)
+            if len(indicator_data) == 0:
+                print(f'Indicator data NOT retrieved for {symbol}')
+                continue
             print(f'Indicator data retrieved for {symbol}')
             plot_columns = ['datetime'
                             'macd_crossovers',

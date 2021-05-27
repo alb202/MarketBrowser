@@ -5,17 +5,19 @@ Module running the Dash app
 """
 
 import dash_html_components as html
+from dash import Dash
 
-from app_batch import *
-from app_data_status import *
-from app_graphing import *
-from app_indicators import *
-from app_market_symbols import *
-from app_screener import *
+from src.main import *
+from src.app_batch import *
+from src.app_data_status import *
+from src.app_graphing import *
+from src.app_indicators import *
+from src.app_market_symbols import *
+from src.app_screener import *
+from src.app_utilities import *
 
-app = dash.Dash(
-    suppress_callback_exceptions=True,
-    external_stylesheets=[dbc.themes.LUMEN])
+
+app = Dash(suppress_callback_exceptions=True, external_stylesheets=[dbc.themes.LUMEN])
 register_graphing_callbacks(app)
 register_batch_callbacks(app)
 register_market_symbol_callbacks(app)

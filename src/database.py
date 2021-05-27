@@ -2,14 +2,19 @@
 
 It contains classes to control the database connection and database reading and writing
 """
-import logger
+from .logger import *
+from .utilities import *
+# from .database import *
+
+# import .utilities
+# import .database
+
 import pandas as pd
 import sqlalchemy as sa
-import utilities
-from models import Base
+from src.models import Base
 from sqlalchemy.exc import OperationalError
 
-log = logger.get_logger(__name__)
+log = get_logger(__name__)
 
 
 # Note: to get sqlite3 working, I copied the DLL from
@@ -39,14 +44,14 @@ class Database:
         """Read database table into pandas dataframe
         """
         log.info("Writing table to database")
-        has_dt = {"datetime": utilities.DATETIME_FORMAT} if has_dt else None
+        has_dt = {"datetime": DATETIME_FORMAT} if has_dt else None
         return pd.read_sql_table(con=self.engine, table_name=table, parse_dates=has_dt)
 
     def query_to_pandas(self, where_dict, has_dt=False):
         """Read database query into pandas dataframe
         """
         log.info("Reading query from database")
-        has_dt = {"datetime": utilities.DATETIME_FORMAT} if has_dt else None
+        has_dt = {"datetime": DATETIME_FORMAT} if has_dt else None
         where_statement = self.create_sql_for_selection(where_dict)
         return pd.read_sql_query(con=self.engine, sql=where_statement, parse_dates=has_dt)
 
