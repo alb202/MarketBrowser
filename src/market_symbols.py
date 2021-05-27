@@ -5,14 +5,16 @@ import json
 import ssl
 import urllib.request as ur
 from time import sleep
-
-import logger
 import pandas as pd
 import requests
-import utilities
+from http.client import RemoteDisconnected
+from requests.exceptions import *
+from urllib3.exceptions import *
 
-log = logger.get_logger(__name__)
+from .logger import *
+from .utilities import *
 
+log = get_logger(__name__)
 
 class MarketSymbols:
     FINANCIALS_TABLE = 'FINANCIALS'
@@ -26,7 +28,7 @@ class MarketSymbols:
 
     def __init__(self, con, cfg, refresh=False):
         self.con = con
-        self.stocks = utilities.convert_df_dtypes(
+        self.stocks = convert_df_dtypes(
             df=pd.read_sql_table(
                 table_name=self.FINANCIALS_TABLE,
                 con=self.con.engine,
@@ -37,15 +39,14 @@ class MarketSymbols:
             # self.mutual_funds = self.get_mutual_funds(self.SYMBOL_URLS['mutual_funds'])
             self.nasdaq_stocks = self.get_nasdaq_stocks(
                 self.SYMBOL_URLS['nasdaq_stocks'])
-            self.stock_info = self.get_stock_info(cfg=cfg,
-                                                  symbols=self.nasdaq_stocks['symbol'].values)
+            self.stock_info = self.get_stock_info(cfg=cfg, symbols=self.nasdaq_stocks['symbol'].values)
             all_stocks = self.nasdaq_stocks.merge(self.stock_info, how='left', on='symbol')
-            self.stocks = utilities.convert_df_dtypes(
+            self.stocks = convert_df_dtypes(
                 df=all_stocks
                     .sort_values("symbol")
                     .drop_duplicates()
                     .reset_index(drop=True),
-                dtypes=self.DTYPES)
+                dtypes=self.DATATYPES)
             self.save_table()
 
     def get_mutual_funds(self):
@@ -103,15 +104,23 @@ class MarketSymbols:
 
     def get_stock_info(self, cfg, symbols):
         error_messages = ['Unknown symbol',
-                          'You have exceeded your allotted message quota. Please enable pay-as-you-go to regain access']
+                          'You have exceeded your allotted message quota. Please enable pay-as-you-go to regain access',
+                          'forbidden',
+                          'The API key provided is not valid.',
+                          'An API key is required to access this data and no key was provided']
         stock_responses = []
         symbols = [i for i in symbols if ('$' not in i) and ('.' not in i)]
-        timeout = (15, 25)
+        timeout = (30, 45)
         sess = requests.Session()
-        adapter = requests.adapters.HTTPAdapter(max_retries=20)
+        adapter = requests.adapters.HTTPAdapter(max_retries=80)
         sess.mount('http://', adapter)
 
         for symbol in symbols:
+            sess = requests.Session()
+            adapter = requests.adapters.HTTPAdapter(max_retries=80)
+            sess.mount('http://', adapter)
+
+            print(f'Symbol: {symbol}')
             attempt = 0
             # print('Symbol: ', symbol)
             url = cfg.view_stock_url()
@@ -120,9 +129,7 @@ class MarketSymbols:
                 is_error = False
                 print('Attempt: ', attempt)
                 try:
-                    sector_response = sess.get(url + f'stock/{symbol}/company/',
-                                               params=params,
-                                               timeout=timeout)
+                    sector_response = sess.get(url + f'stock/{symbol}/company/', params=params, timeout=timeout)
                     if sector_response.text in error_messages:
                         is_error = True
                     else:
@@ -144,12 +151,15 @@ class MarketSymbols:
                         requests.exceptions.ConnectionError,
                         requests.exceptions.HTTPError,
                         ConnectionResetError,
-                        ssl.SSLError, ssl.SSLEOFError,
+                        NameError,
+                        ssl.SSLError,
+                        ssl.SSLEOFError,
                         requests.exceptions.Timeout,
                         requests.exceptions.SSLError,
                         requests.exceptions.ConnectTimeout,
-                        socket.timeout,
-                        requests.exceptions.ReadTimeout) as error:
+                        ProtocolError, ReadTimeout,
+                        RemoteDisconnected,
+                        Exception) as error:
                     log.info("An attempt to get data failed!")
                     log.warn(error)
                     is_error = True
@@ -159,36 +169,37 @@ class MarketSymbols:
                     try:
                         sector_data = sector_response.json()
                         sector_data = {key: val for key, val in sector_data.items() if key in ['industry', 'sector']}
-                    except (json.decoder.JSONDecodeError) as error:
+                    except (json.decoder.JSONDecodeError, NameError, Exception) as error:
                         log.info(error)
                         sector_data = {'industry': None, 'sector': None}
 
                     try:
                         marketcap_data = {'marketCap': marketcap_response.text}
-                    except (NameError, ValueError, AttributeError) as error:
+                    except (NameError, ValueError, AttributeError, Exception) as error:
                         log.info(error)
                         marketcap_data = {'marketCap': None}
 
                     try:
                         float_data = {'float': float_response.text}
-                    except (NameError, ValueError, AttributeError) as error:
+                    except (NameError, ValueError, AttributeError, Exception) as error:
                         log.info(error)
                         float_data = {'float': None}
 
                     try:
                         shares_data = {'sharesOutstanding': shares_response.text}
-                    except (NameError, ValueError, AttributeError) as error:
+                    except (NameError, ValueError, AttributeError, Exception) as error:
                         log.info(error)
                         shares_data = {'sharesOutstanding': None}
 
                     stock_responses.append(
                         {'symbol': symbol, **sector_data, **shares_data, **float_data, **marketcap_data})
+                    sleep(1)
                     break
                 if attempt > 10:
                     break
                 sleep(1)
                 attempt += 1
-
+        print('Finished getting responses')
         return pd.DataFrame(stock_responses) \
             .sort_values('symbol') \
             .drop_duplicates() \
