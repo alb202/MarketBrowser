@@ -6,9 +6,10 @@ import numpy as np
 import pandas as pd
 import requests
 
-from utilities import *
+from .logger import *
+from .utilities import *
 
-log = logger.get_logger(__name__)
+log = get_logger(__name__)
 
 
 class AlphaVantage:
@@ -92,14 +93,14 @@ class AlphaVantage:
         """
         log.info("Processing raw data from API")
         tries = 0
-        while tries < self.max_retries:
+        while True:
             try:
                 price_data = pd.DataFrame.from_dict(
                     raw_data[list(
                         filter(lambda x: x != "Meta Data",
                                raw_data.keys()))[0]]).transpose()
             except (IndexError, TypeError) as e:
-                log.warning("Error, raw data not accessed: ", e)
+                log.warning("Error, raw data not accessed! ")
                 tries += 1
                 continue
             else:
