@@ -1,9 +1,10 @@
 from abc import ABC
 
 # from plotly.subplots import make_subplots
-from app_utilities import *
-from app_utilities import make_rangebreaks
-
+from src.app_utilities import *
+# from src.app_utilities import make_rangebreaks
+from src.utilities import *
+from src.retracements import *
 
 class MovingAverages(ABC):
 
@@ -33,9 +34,9 @@ class MACD(MovingAverages):
         self.macd = self.exponential_moving_average(ts=data[close_col], period=short_period) - \
                     self.exponential_moving_average(ts=data[close_col], period=long_period)
         self.macd_signal = self.exponential_moving_average(ts=self.macd, period=signal_period)
-        self.macd_histogram = self.macd - self.macd_signal
+        self.macd_histogram = eval('self.macd - self.macd_signal')
         self.crossovers = self.macd_crossovers()
-        self.macd_trend = np.where((self.macd_histogram - self.macd_histogram.shift(1)) >= 0, 1, -1)
+        self.macd_trend = np.where(eval('(self.macd_histogram - self.macd_histogram.shift(1)) >= 0'), 1, -1)
 
     def table(self):
         return pd.DataFrame.from_dict(
@@ -48,8 +49,8 @@ class MACD(MovingAverages):
                   'macd_trend': self.macd_trend}).set_index('datetime')
 
     def macd_crossovers(self):
-        cross = np.sign(self.macd - self.macd_signal)
-        return np.sign(cross.diff().replace({np.NaN: 0}))
+        # cross =
+        return np.sign(self.macd - self.macd_signal).diff().replace({np.NaN: 0})
 
     def plot_macd(self, trace_only=False):
         bar_color = self.macd_histogram.copy(deep=True)
@@ -189,11 +190,9 @@ class HeikinAshi(MovingAverages):
     def ha_indicator(self):
         current_change = self.ha_close > self.ha_open
         last_change = self.ha_close.shift(1) > self.ha_open.shift(1)
-        buy_indicator = current_change & ~last_change
-        sell_indicator = ~current_change & last_change
-        return np.where(buy_indicator == True,
-                        buy_indicator.replace({True: 1, False: 0}),
-                        sell_indicator.replace({True: -1, False: 0}))
+        buy_indicator = (current_change & ~last_change).replace({True: 1, False: 0})
+        sell_indicator = (~current_change & last_change).replace({True: -1, False: 0})
+        return np.where(buy_indicator == 1, buy_indicator, sell_indicator)
 
     def get_values(self):
         return dict(datetime=self.xaxis, open=self.ha_open,
@@ -244,9 +243,6 @@ class HeikinAshi(MovingAverages):
 
 class MovingAverageCrossover(MovingAverages):
     def __init__(self, data, function, close_col='close', ma1_type='sma', ma2_type='sma', ma1_period=13, ma2_period=26):
-        # if len(data.columns) != 2:
-        #     print("Timeseries must have exactly 1 data column and 1 date column! Exiting.")
-        #     exit()
         if 'datetime' not in data.columns:
             print("Timeseries must have datetime column! Exiting.")
             exit()
@@ -255,7 +251,6 @@ class MovingAverageCrossover(MovingAverages):
             ma1_type=ma1_type, ma1_period=ma1_period,
             ma2_type=ma2_type, ma2_period=ma2_period)
         self.xaxis = data['datetime']
-        # data_col = [i for i in data.columns if i != 'datetime'][0]
         self.data = data[close_col]
         self.ma1 = self.simple_moving_average(ts=self.data, period=ma1_period) \
             if ma1_type == 'sma' \
@@ -265,11 +260,10 @@ class MovingAverageCrossover(MovingAverages):
             else self.exponential_moving_average(ts=self.data, period=ma2_period)
         current_change = self.ma1 > self.ma2
         last_change = self.ma1.shift(1) > self.ma2.shift(1)
-        cross_up = current_change & ~last_change
-        cross_down = ~current_change & last_change
-        self.indicator = np.where(cross_up == False,
-                                  cross_down.replace({True: -1, False: 0}),
-                                  cross_up.replace({True: 1, False: 0}))
+        # print('cross_up: ', (current_change & ~last_change))
+        cross_up = (current_change & ~last_change).replace({True: 1, False: 0})
+        cross_down = (~current_change & last_change).replace({True: -1, False: 0})
+        self.indicator = np.where(cross_up == 1, cross_down, cross_up)
 
     def table(self):
         return pd.DataFrame.from_dict(
@@ -343,12 +337,9 @@ class MovingAverageZone(MovingAverages):
             else self.exponential_moving_average(ts=close, period=ma2_period)
 
         self.up_day = ha_close > ha_open
-        trend_up = self.up_day & (self.ma1 > self.ma2) & (close > self.ma1)
-        trend_down = ~self.up_day & (self.ma1 <= self.ma2) & (close < self.ma1)
-        self.indicator = np.where(
-            trend_up == False,
-            trend_down.replace({True: -1, False: 0}),
-            trend_up.replace({True: 1, False: 0}))
+        trend_up = (self.up_day & (self.ma1 > self.ma2) & (close > self.ma1)).replace({True: 1, False: 0})
+        trend_down = (~self.up_day & (self.ma1 <= self.ma2) & (close < self.ma1)).replace({True: -1, False: 0})
+        self.indicator = np.where(trend_up == 1, trend_down, trend_up)
 
     def table(self):
         return pd.DataFrame.from_dict(
@@ -532,7 +523,8 @@ def create_indicator_table(data, function, indicators={1, 2, 3, 4, 5, 6, 7, 8}):
     """
     if (len(data) == 0) | (len(indicators) == 0):
         return pd.DataFrame.from_dict({i: [] for i in ['datetime']}, orient='columns')
-
+        # return pd.DataFrame(columns=['datetime', 'open', 'high', 'low', 'close'], index=None).set_index('datetime')
+        # return None
     results = data.loc[:, ['datetime', 'open', 'high', 'low', 'close']].set_index('datetime')
 
     if 1 in indicators:
