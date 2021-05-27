@@ -2,47 +2,54 @@
 It is for the core application functionality
 """
 
+import os
 import argparse
-import logger
-import market_time
-import utilities
-from config import Config
-from data_status import DataStatus
-from database import Database
-from market_symbols import MarketSymbols
-from timeseries import TimeSeries
+from .logger import *
+from .market_time import *
+from .utilities import *
+from .config import Config
+from .data_status import Status
+from .database import Database
+from .market_symbols import MarketSymbols
+from .timeseries import TimeSeries
 
-log = logger.get_logger(__name__)
+log = get_logger(__name__)
+
 
 
 def main(args):
+    print(f'Current working file is {__file__}')
+    print('Current working file is: ', '/'.join(__file__.split('\\')[:-1]))
+    print('Config file: ', '\\'.join(__file__.split('\\')[:-2])+"\\resources\\config.cfg")
+    # os.chdir()
+
     print('args: ', args)
     """Retrieve most up-to-date time series data for a single symbol/function
     """
     log.info('<<< Starting MarketBrowser >>>')
     log.info('<<< Loading config and connecting to database >>>')
     cfg = Config(args['config']) if args['config'] is not None \
-        else Config("../resources/config.cfg")
+        else Config('\\'.join(__file__.split('\\')[:-2])+"\\resources\\config.cfg")
     log.info('<<< Creating database connection >>>')
     db_connection = Database(cfg.view_db_location())
     db_connection.check_database()
     log.info('<<< Loading data status >>>')
-    data_status = DataStatus(cfg)
-    data_status.get_data_status(db_connection)
+    data_status_ = Status(cfg)
+    data_status_.get_data_status(db=db_connection)
     if args['data_status']:
-        return data_status.data
+        return data_status_.data
 
     if args['get_symbols']:
         symbols = MarketSymbols(con=db_connection, cfg=cfg, refresh=args['refresh']).show_all()
         if args['only_tracked']:
-            data_status = data_status.data.loc[:, ['symbol']].drop_duplicates().reset_index(drop=True)
-            symbols = symbols.merge(data_status, how='inner', on='symbol')
+            data_status_ = data_status_.data.loc[:, ['symbol']].drop_duplicates().reset_index(drop=True)
+            symbols = symbols.merge(data_status_, how='inner', on='symbol')
         return symbols
 
     if ((not args['no_api'] ) & (not args['force_update'])):
         log.info('<<< Checking market status >>>')
-        market_time_info = market_time.MarketTime(cfg=cfg)
-        last_business_hours = market_time.BusinessHours(market_time_info)
+        market_time_info = MarketTime(cfg=cfg)
+        last_business_hours = BusinessHours(market_time_info)
         last_market_time = last_business_hours.view_last_market_time()
 
     if args['get_all']:
@@ -62,7 +69,7 @@ def main(args):
             else:
                 interval_arg_list_ = [None]
             for interval_arg in interval_arg_list_:
-                last_update = data_status.get_last_update(
+                last_update = data_status_.get_last_update(
                     symbol=symbol_arg.upper(),
                     function=function_arg,
                     interval=interval_arg)
@@ -71,7 +78,7 @@ def main(args):
                 elif args['no_api']:
                     get_new_data = False
                 else:
-                    get_new_data = utilities.get_new_data_test(last_update, last_market_time)
+                    get_new_data = get_new_data_test(last_update, last_market_time)
 
                 log.info('<<< Getting timeseries data >>>')
                 query = TimeSeries(con=db_connection,
@@ -86,18 +93,18 @@ def main(args):
                     log.info('<<< Saving update information to database >>>')
                     if len(query.remote_data.prices) > 0:
                         if last_update is None:
-                            data_status.add_status_entry(
+                            data_status_.add_status_entry(
                                 symbol=symbol_arg,
                                 function=function_arg,
                                 interval=interval_arg)
                         else:
-                            data_status.update_status_entry(
+                            data_status_.update_status_entry(
                                 symbol=symbol_arg,
                                 function=function_arg,
                                 interval=interval_arg)
                         # if get_new_data and not args['no_api']:
                         log.info("<<< Saving data statuses to database >>>")
-                        data_status.save_table(database=db_connection)
+                        data_status_.save_table(database=db_connection)
 
     if args['no_return'] | \
             (not args['symbol']) | \
@@ -152,7 +159,7 @@ def parse_args():
                         help='Only view market symbols that are tracked')
     args = parser.parse_args().__dict__
     log.info(f"Arguments: {str(args)}")
-    return utilities.validate_args(args)
+    return validate_args(args)
 
 
 if __name__ == "__main__":
