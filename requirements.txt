@@ -18,7 +18,7 @@ Jinja2==2.11.2
 kaleido==0.1.0.post1
 MarkupSafe==1.1.1
 numexpr==2.7.2
-numpy==1.19.5
+numpy==1.22.0
 orca==1.5.4
 pandas==1.1.5
 plotly==4.14.3
